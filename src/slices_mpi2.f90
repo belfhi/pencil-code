@@ -11,6 +11,7 @@ module Slices
   use Sub, only: xlocation, zlocation, update_snaptime, read_snaptime, position
   use Mpicomm
   use Io, only: check_success
+  use mpi
 !
   implicit none
 !
