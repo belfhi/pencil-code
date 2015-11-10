@@ -19,8 +19,8 @@ module File_io
   ! Fixed length or scalar string necessary as gfortran is compiling incorrectly otherwise.
   ! For future debugged gfortran versions the commented lines should be used.
 !
-  !character(len=:), dimension(:), allocatable, protected :: parallel_unit                ! gfortran v4.9.2 will not compile correctly with this line
-  character(len=:),                          allocatable, protected :: parallel_unit      ! gfortran v4.8.4 will not compile this line
+  !character(len=:), dimension(:), allocatable, protected :: parallel_unit                
+  character(len=:),                          allocatable, protected :: parallel_unit     
   ! Temporary replacement code for the preceding linei(has some other consequences):
   !character(len=36000), protected :: parallel_unit
   integer, parameter :: fixed_buflen=128

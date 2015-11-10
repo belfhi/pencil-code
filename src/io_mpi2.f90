@@ -282,7 +282,8 @@ module Io
       real :: t_sp   ! t in single precision for backwards compatibility
       integer(kind=8) :: varlen
 !
-      if (.not. present (file)) call fatal_error ('output_snap', 'downsampled output not implemented for IO_mpi2')
+      if (.not. present (file)) call fatal_error ( &
+          'output_snap', 'downsampled output not implemented for IO_mpi2')
 !
       lwrite_add = .true.
       if (present (mode)) lwrite_add = (mode == 1)
@@ -293,25 +294,29 @@ module Io
 !
 ! Create 'local_type' to be the local data portion that is being saved.
 !
-      call MPI_TYPE_CREATE_SUBARRAY (io_dims, local_size, subsize, local_start, order, mpi_precision, local_type, mpi_err)
+      call MPI_TYPE_CREATE_SUBARRAY (io_dims, local_size, subsize, local_start, &
+                                     order, mpi_precision, local_type, mpi_err)
       call check_success ('output', 'create local subarray', file)
       call MPI_TYPE_COMMIT (local_type, mpi_err)
       call check_success ('output', 'commit local type', file)
 !
 ! Create 'global_type' to indicate the local data portion in the global file.
 !
-      call MPI_TYPE_CREATE_SUBARRAY (io_dims, global_size, subsize, global_start, order, mpi_precision, global_type, mpi_err)
+      call MPI_TYPE_CREATE_SUBARRAY (io_dims, global_size, subsize, global_start, &
+                                     order, mpi_precision, global_type, mpi_err)
       call check_success ('output', 'create global subarray', file)
       call MPI_TYPE_COMMIT (global_type, mpi_err)
       call check_success ('output', 'commit global type', file)
 !
       call MPI_FILE_DELETE (trim (directory_snap)//'/'//file, mpi_err)
-      call MPI_FILE_OPEN (MPI_COMM_WORLD, trim (directory_snap)//'/'//file, MPI_MODE_CREATE+MPI_MODE_WRONLY, io_info, handle, mpi_err)
+      call MPI_FILE_OPEN (MPI_COMM_WORLD, trim (directory_snap)//'/'//file, &
+                          MPI_MODE_CREATE+MPI_MODE_WRONLY, io_info, handle, mpi_err)
       call check_success ('output', 'open', trim (directory_snap)//'/'//file)
 !
 ! Setting file view and write raw binary data, ie. 'native'.
 !
-      call MPI_FILE_SET_VIEW (handle, displacement, mpi_precision, global_type, 'native', io_info, mpi_err)
+      call MPI_FILE_SET_VIEW (handle, displacement, mpi_precision, &
+                              global_type, 'native', io_info, mpi_err)
       call check_success ('output', 'create view', file)
 !
       call MPI_FILE_WRITE_ALL (handle, a, 1, local_type, status, mpi_err)
@@ -324,7 +329,8 @@ module Io
       if (lwrite_add) then
         if (lroot) then
           allocate (gx(mxgrid), gy(mygrid), gz(mzgrid), stat=alloc_err)
-          if (alloc_err > 0) call fatal_error ('output_snap', 'Could not allocate memory for gx,gy,gz', .true.)
+          if (alloc_err > 0) call fatal_error ( & 
+                   'output_snap', 'Could not allocate memory for gx,gy,gz', .true.)
           call collect_grid (x, y, z, gx, gy, gz)
 !
           open (lun_output, FILE=trim (directory_snap)//'/'//file, FORM='unformatted', &
