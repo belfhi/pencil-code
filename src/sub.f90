@@ -3328,7 +3328,7 @@ module Sub
             !  also add spectrum at t=0
             nonzero:if (first_call) then
               tout = t
-            else nonzero:
+              else nonzero
               !  make sure the tout is a good time
               t0 = max(t - dt, 0.0D0)
               tout = t0 + (dble(dtout) - modulo(t0, dble(dtout)))
