@@ -389,24 +389,28 @@ module Io
 !
 ! Create 'local_type' to be the local data portion that is being saved.
 !
-      call MPI_TYPE_CREATE_SUBARRAY (io_dims, local_size, subsize, local_start, order, mpi_precision, local_type, mpi_err)
+      call MPI_TYPE_CREATE_SUBARRAY (io_dims, local_size, subsize, local_start, &
+                                     order, mpi_precision, local_type, mpi_err)
       call check_success ('input', 'create local subarray', file)
       call MPI_TYPE_COMMIT (local_type, mpi_err)
       call check_success ('input', 'commit local subarray', file)
 !
 ! Create 'global_type' to indicate the local data portion in the global file.
 !
-      call MPI_TYPE_CREATE_SUBARRAY (io_dims, global_size, subsize, global_start, order, mpi_precision, global_type, mpi_err)
+      call MPI_TYPE_CREATE_SUBARRAY (io_dims, global_size, subsize, global_start, &
+                                     order, mpi_precision, global_type, mpi_err)
       call check_success ('input', 'create global subarray', file)
       call MPI_TYPE_COMMIT (global_type, mpi_err)
       call check_success ('input', 'commit global subarray', file)
 !
-      call MPI_FILE_OPEN (MPI_COMM_WORLD, trim (directory_snap)//'/'//file, MPI_MODE_RDONLY, io_info, handle, mpi_err)
+      call MPI_FILE_OPEN (MPI_COMM_WORLD, trim (directory_snap)//'/'//file, &
+                          MPI_MODE_RDONLY, io_info, handle, mpi_err)
       call check_success ('input', 'open', trim (directory_snap)//'/'//file)
 !
 ! Setting file view and read raw binary data, ie. 'native'.
 !
-      call MPI_FILE_SET_VIEW (handle, displacement, mpi_precision, global_type, 'native', io_info, mpi_err)
+      call MPI_FILE_SET_VIEW (handle, displacement, mpi_precision, global_type, &
+                              'native', io_info, mpi_err)
       call check_success ('input', 'create view', file)
 !
       call MPI_FILE_READ_ALL (handle, a, 1, local_type, status, mpi_err)
@@ -419,9 +423,11 @@ module Io
       if (lread_add) then
         if (lroot) then
           allocate (gx(mxgrid), gy(mygrid), gz(mzgrid), stat=alloc_err)
-          if (alloc_err > 0) call fatal_error ('input_snap', 'Could not allocate memory for gx,gy,gz', .true.)
+          if (alloc_err > 0) call fatal_error &
+             ('input_snap', 'Could not allocate memory for gx,gy,gz', .true.)
 !
-          open (lun_input, FILE=trim (directory_snap)//'/'//file, FORM='unformatted', access='stream', status='old')
+          open (lun_input, FILE=trim (directory_snap)//'/'//file, FORM='unformatted', &
+                 access='stream', status='old')
           varlen = int(mxgrid,kind=8)*mygrid*mzgrid*nv*sizeof_real()
           read (lun_input, pos=varlen) t_sp, gx, gy, gz, dx, dy, dz
           call distribute_grid (x, y, z, gx, gy, gz)
