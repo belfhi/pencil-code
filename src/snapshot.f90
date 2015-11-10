@@ -469,7 +469,7 @@ module Snapshot
 !  tspec calculated in read_snaptime, but only available to root processor.
 !
       if (ldo_all .and. lfirst_call) then
-        call read_snaptime(file,tspec,nspec,dspec,t)
+        call read_snaptime(file,tspec,nspec,dspec,t,lfirst_call)
         lfirst_call=.false.
       endif
 !
