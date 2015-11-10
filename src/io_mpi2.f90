@@ -273,6 +273,7 @@ module Io
 !  13-feb-2014/MR: made file optional (prep for downsampled output)
 !
       use Mpicomm, only: globalize_xy, collect_grid, mpi_precision
+      use Syscalls, only: sizeof_real
 !
       integer, intent(in) :: nv
       real, dimension (mx,my,mz,nv), intent(in) :: a
@@ -282,6 +283,7 @@ module Io
       real, dimension (:), allocatable :: gx, gy, gz
       integer :: handle, alloc_err
       real :: t_sp   ! t in single precision for backwards compatibility
+      integer(kind=8) :: varlen
 !
       if (.not. present (file)) call fatal_error ('output_snap', 'downsampled output not implemented for IO_mpi2')
 !
@@ -329,7 +331,8 @@ module Io
           call collect_grid (x, y, z, gx, gy, gz)
 !
           open (lun_output, FILE=trim (directory_snap)//'/'//file, FORM='unformatted', &
-                position='append', access='stream',status='old')
+                access='stream',status='old')
+          varlen = int(mxgrid,kind=8)*mygrid*mzgrid*nv*sizeof_real()
           t_sp = t
           write (lun_output) t_sp, gx, gy, gz, dx, dy, dz
           deallocate (gx, gy, gz)
