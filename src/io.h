@@ -12,5 +12,5 @@
 
   public :: wgrid, rgrid
   public :: wproc_bounds, rproc_bounds
-  public :: directory_names, log_filename_to_file
+  public :: directory_names, log_filename_to_file, check_success
 
