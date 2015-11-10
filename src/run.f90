@@ -85,7 +85,7 @@ program run
   use Streamlines,     only: tracers_prepare, wtracers
   use Sub
   use Grid,            only: construct_grid, box_vol, grid_bound_data
-  use IO,              only: wgrid
+  use IO,              only: wgrid, lcollective_IO
   use Syscalls,        only: is_nan
   use Testscalar,      only: rescaling_testscalar
   use Testfield,       only: rescaling_testfield
@@ -238,13 +238,13 @@ program run
 !
   if (.not.luse_oldgrid) then
     call wgrid('grid.dat')
-    call wdim(trim(directory)//'/dim.dat')
+    if (.not. lcollective_IO) call wdim(trim(directory)//'/dim.dat')
     if (lroot) call wdim(trim(datadir)//'/dim.dat', &
         nxgrid+2*nghost,nygrid+2*nghost,nzgrid+2*nghost,lglobal=.true.)
     if (ip<11) print*,'Lz=',Lz
     if (ip<11) print*,'z=',z
   elseif (lwrite_dim_again) then
-    call wdim(trim(directory)//'/dim.dat')
+    if (.not. lcollective_IO) call wdim(trim(directory)//'/dim.dat')
     if (lroot) call wdim(trim(datadir)//'/dim.dat', &
         nxgrid+2*nghost,nygrid+2*nghost,nzgrid+2*nghost,lglobal=.true.)
     if (ip<11) print*,'Lz=',Lz

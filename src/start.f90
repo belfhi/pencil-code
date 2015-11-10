@@ -69,7 +69,7 @@ program start
   use Initcond
   use InitialCondition, only: initial_condition_all, initial_condition_clean_up
   use Interstellar,     only: init_interstellar
-  use IO,               only: wgrid, directory_names, wproc_bounds, output_globals
+  use IO,               only: wgrid, directory_names, wproc_bounds, output_globals, lcollective_IO
   use Lorenz_gauge,     only: init_lorenz_gauge
   use Magnetic,         only: init_aa
   use Messages
@@ -590,7 +590,7 @@ program start
   elseif (lmodify) then
     call wsnap(modify_filename,f,mvar_io,ENUM=.false.)
   endif
-  call wdim(trim(directory)//'/dim.dat')
+  if (.not. lcollective_IO) call wdim(trim(directory)//'/dim.dat')
 !
 !  Also write full dimensions to data/.
 !
