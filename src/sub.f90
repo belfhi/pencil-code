@@ -3278,7 +3278,7 @@ module Sub
 !
     endsubroutine rdim
 !***********************************************************************
-    subroutine read_snaptime(file,tout,nout,dtout,t)
+    subroutine read_snaptime(file,tout,nout,dtout,t,lfcall)
 !
 !  Read in output time for next snapshot (or similar) from control file.
 !
@@ -3294,9 +3294,10 @@ module Sub
       integer, intent(out) :: nout
       real, intent(in) :: dtout
       double precision, intent(in) :: t
+      logical, optional, intent(in) :: lfcall
 !
       integer, parameter :: lun = 31
-      logical :: exist
+      logical :: exist, first_call
       integer, parameter :: nbcast_array=2
       real, dimension(nbcast_array) :: bcast_array
       double precision :: t0
@@ -3311,6 +3312,12 @@ module Sub
         if (exist) then
           read(lun,*) tout,nout
         else
+          ! if lfcall is set, set it to first_call logical
+          if (.not. present(lfcall)) then
+            first_call=.false.
+          else
+            first_call=lfcall
+          endif
 !
 !  Special treatment when dtout is negative.
 !  Now tout and nout refer to the next snapshopt to be written.
@@ -3318,9 +3325,14 @@ module Sub
           settout: if (dtout < 0.0) then
             tout = log10(t)
           elseif (dtout /= 0.0) then settout
-            !  make sure the tout is a good time
-            t0 = max(t - dt, 0.0D0)
-            tout = t0 + (dble(dtout) - modulo(t0, dble(dtout)))
+            !  also add spectrum at t=0
+            nonzero:if (first_call) then
+              tout = t
+            else nonzero:
+              !  make sure the tout is a good time
+              t0 = max(t - dt, 0.0D0)
+              tout = t0 + (dble(dtout) - modulo(t0, dble(dtout)))
+            endif nonzero
           else settout
             call warning("read_snaptime", "Writing snapshot every time step. ")
             tout = 0.0
