@@ -12,13 +12,13 @@ module Streamlines
   use Cdata
   use Cparam
   use Messages, only: fatal_error
+  use mpi
 !
   implicit none
 !
   public :: tracers_prepare, wtracers, read_streamlines_init_pars
   public :: write_streamlines_init_pars, read_streamlines_run_pars, write_streamlines_run_pars
 !
-  include 'mpif.h'
 !
 ! a few constants
   integer :: VV_RQST = 10

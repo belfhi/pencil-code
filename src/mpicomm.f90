@@ -47,11 +47,11 @@ module Mpicomm
 !
   use Cdata
   use Cparam
+  use mpi
 !
   implicit none
 !
   include 'mpicomm.h'
-  include 'mpif.h'
 !
   interface mpirecv_logical
      module procedure mpirecv_logical_scl
