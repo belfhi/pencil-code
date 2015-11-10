@@ -1,0 +1,16 @@
+#
+# golem cluster at hs hamburg 
+#
+
+%section Makefile
+  FC=h5fc
+  CC=h5cc
+  CFLAGS = -DFUNDERSC=1
+  FFLAGS+= -implicitnone -CB -g -traceback #-O3 
+  FFLAGS_DOUBLE += r8
+  #LD=ifort -i-static 
+%endsection Makefile
+
+%section runtime
+  mpiexec=mpirun
+%endsection runtime

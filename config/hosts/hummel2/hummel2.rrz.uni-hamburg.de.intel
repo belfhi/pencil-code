@@ -1,0 +1,14 @@
+#
+# golem cluster at hs hamburg 
+#
+%include compilers/Intel_MPI
+
+%section Makefile
+  FFLAGS+= -g -traceback -CB  #-O3 -march=core-avx2 -xcore-avx2  -r8 
+  CFLAGS+= #-DDOUBLE_PRECISION
+  #LD=ifort -i-static 
+%endsection Makefile
+
+%section runtime
+  mpiexec=mpirun
+%endsection runtime
