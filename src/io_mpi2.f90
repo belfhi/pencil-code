@@ -26,12 +26,12 @@ module Io
   use Cparam, only: intlen, fnlen, max_int
   use Messages, only: fatal_error, svn_id
   use General, only: delete_file
+  use mpi
 !
   implicit none
 !
   include 'io.h'
   include 'record_types.h'
-  include 'mpif.h'
 !
   interface write_persist
     module procedure write_persist_logical_0D
@@ -65,7 +65,7 @@ module Io
   integer :: persist_last_id=-max_int
 !
   integer :: local_type, global_type, mpi_err
-  integer, parameter :: mpi_comm=MPI_COMM_WORLD
+  integer, parameter :: mpicomm=MPI_COMM_WORLD
   integer, dimension(MPI_STATUS_SIZE) :: status
   integer (kind=MPI_OFFSET_KIND), parameter :: displacement=0
   integer, parameter :: io_dims=4, order=MPI_ORDER_FORTRAN, io_info=MPI_INFO_NULL
@@ -306,8 +306,8 @@ module Io
       call MPI_TYPE_COMMIT (global_type, mpi_err)
       call check_success ('output', 'commit global type', file)
 !
-      call delete_file (trim (directory_snap)//'/'//file)
-      call MPI_FILE_OPEN (mpi_comm, trim (directory_snap)//'/'//file, MPI_MODE_CREATE+MPI_MODE_WRONLY, io_info, handle, mpi_err)
+      call MPI_FILE_DELETE (trim (directory_snap)//'/'//file, mpi_err)
+      call MPI_FILE_OPEN (mpicomm, trim (directory_snap)//'/'//file, MPI_MODE_CREATE+MPI_MODE_WRONLY, io_info, handle, mpi_err)
       call check_success ('output', 'open', trim (directory_snap)//'/'//file)
 !
 ! Setting file view and write raw binary data, ie. 'native'.
@@ -328,7 +328,8 @@ module Io
           if (alloc_err > 0) call fatal_error ('output_snap', 'Could not allocate memory for gx,gy,gz', .true.)
           call collect_grid (x, y, z, gx, gy, gz)
 !
-          open (lun_output, FILE=trim (directory_snap)//'/'//file, FORM='unformatted', position='append', status='old')
+          open (lun_output, FILE=trim (directory_snap)//'/'//file, FORM='unformatted', &
+                position='append', access='stream',status='old')
           t_sp = t
           write (lun_output) t_sp, gx, gy, gz, dx, dy, dz
           deallocate (gx, gy, gz)
@@ -367,6 +368,7 @@ module Io
 !
       use Mpicomm, only: localize_xy, mpibcast_real, mpi_precision
       use General, only: backskip_to_time
+      use Syscalls, only: sizeof_real
 !
       character (len=*) :: file
       integer, intent(in) :: nv
@@ -375,6 +377,7 @@ module Io
 !
       real, dimension (:), allocatable :: gx, gy, gz
       integer :: handle, alloc_err
+      integer(kind=8) :: varlen
       real :: t_sp   ! t in single precision for backwards compatibility
 !
       lread_add = .true.
@@ -398,7 +401,7 @@ module Io
       call MPI_TYPE_COMMIT (global_type, mpi_err)
       call check_success ('input', 'commit global subarray', file)
 !
-      call MPI_FILE_OPEN (mpi_comm, trim (directory_snap)//'/'//file, MPI_MODE_RDONLY, io_info, handle, mpi_err)
+      call MPI_FILE_OPEN (mpicomm, trim (directory_snap)//'/'//file, MPI_MODE_RDONLY, io_info, handle, mpi_err)
       call check_success ('input', 'open', trim (directory_snap)//'/'//file)
 !
 ! Setting file view and read raw binary data, ie. 'native'.
@@ -418,9 +421,9 @@ module Io
           allocate (gx(mxgrid), gy(mygrid), gz(mzgrid), stat=alloc_err)
           if (alloc_err > 0) call fatal_error ('input_snap', 'Could not allocate memory for gx,gy,gz', .true.)
 !
-          open (lun_input, FILE=trim (directory_snap)//'/'//file, FORM='unformatted', position='append', status='old')
-          call backskip_to_time(lun_input)
-          read (lun_input) t_sp, gx, gy, gz, dx, dy, dz
+          open (lun_input, FILE=trim (directory_snap)//'/'//file, FORM='unformatted', access='stream', status='old')
+          varlen = int(mxgrid,kind=8)*mygrid*mzgrid*nv*sizeof_real()
+          read (lun_input, pos=varlen) t_sp, gx, gy, gz, dx, dy, dz
           call distribute_grid (x, y, z, gx, gy, gz)
           deallocate (gx, gy, gz)
         else
