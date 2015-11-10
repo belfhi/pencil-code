@@ -65,7 +65,6 @@ module Io
   integer :: persist_last_id=-max_int
 !
   integer :: local_type, global_type, mpi_err
-  integer, parameter :: mpicomm=MPI_COMM_WORLD
   integer, dimension(MPI_STATUS_SIZE) :: status
   integer (kind=MPI_OFFSET_KIND), parameter :: displacement=0
   integer, parameter :: io_dims=4, order=MPI_ORDER_FORTRAN, io_info=MPI_INFO_NULL
@@ -159,9 +158,7 @@ module Io
       endif
 !
       chproc = itoa (iproc)
-      call safe_character_assign (directory, trim (datadir)//'/proc'//chproc)
-      call safe_character_assign (directory_dist, &
-                                            trim (datadir_snap)//'/proc'//chproc)
+      call safe_character_assign (directory, trim (datadir)//'/allprocs')
       call safe_character_assign (directory_snap, trim (datadir_snap)//'/allprocs')
       call safe_character_assign (directory_collect, trim (datadir_snap)//'/allprocs')
 !
@@ -309,7 +306,7 @@ module Io
       call check_success ('output', 'commit global type', file)
 !
       call MPI_FILE_DELETE (trim (directory_snap)//'/'//file, mpi_err)
-      call MPI_FILE_OPEN (mpicomm, trim (directory_snap)//'/'//file, MPI_MODE_CREATE+MPI_MODE_WRONLY, io_info, handle, mpi_err)
+      call MPI_FILE_OPEN (MPI_COMM_WORLD, trim (directory_snap)//'/'//file, MPI_MODE_CREATE+MPI_MODE_WRONLY, io_info, handle, mpi_err)
       call check_success ('output', 'open', trim (directory_snap)//'/'//file)
 !
 ! Setting file view and write raw binary data, ie. 'native'.
@@ -404,7 +401,7 @@ module Io
       call MPI_TYPE_COMMIT (global_type, mpi_err)
       call check_success ('input', 'commit global subarray', file)
 !
-      call MPI_FILE_OPEN (mpicomm, trim (directory_snap)//'/'//file, MPI_MODE_RDONLY, io_info, handle, mpi_err)
+      call MPI_FILE_OPEN (MPI_COMM_WORLD, trim (directory_snap)//'/'//file, MPI_MODE_RDONLY, io_info, handle, mpi_err)
       call check_success ('input', 'open', trim (directory_snap)//'/'//file)
 !
 ! Setting file view and read raw binary data, ie. 'native'.
