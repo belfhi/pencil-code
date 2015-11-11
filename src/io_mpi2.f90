@@ -308,7 +308,7 @@ module Io
       call MPI_TYPE_COMMIT (global_type, mpi_err)
       call check_success ('output', 'commit global type', file)
 !
-      call MPI_FILE_DELETE (trim (directory_snap)//'/'//file, mpi_err)
+      call MPI_FILE_DELETE (MPI_COMM_WORLD, trim (directory_snap)//'/'//file, mpi_err)
       call MPI_FILE_OPEN (MPI_COMM_WORLD, trim (directory_snap)//'/'//file, &
                           MPI_MODE_CREATE+MPI_MODE_WRONLY, io_info, handle, mpi_err)
       call check_success ('output', 'open', trim (directory_snap)//'/'//file)
@@ -337,7 +337,7 @@ module Io
                 access='stream',status='old')
           varlen = int(mxgrid,kind=8)*mygrid*mzgrid*nv*sizeof_real()
           t_sp = t
-          write (lun_output) t_sp, gx, gy, gz, dx, dy, dz
+          write (lun_output, pos=varlen) t_sp, gx, gy, gz, dx, dy, dz
           deallocate (gx, gy, gz)
         else
           call collect_grid (x, y, z)
@@ -430,12 +430,12 @@ module Io
         if (lroot) then
           allocate (gx(mxgrid), gy(mygrid), gz(mzgrid), stat=alloc_err)
           if (alloc_err > 0) call fatal_error &
-             ('input_snap', 'Could not allocate memory for gx,gy,gz', .true.)
+                ('input_snap', 'Could not allocate memory for gx,gy,gz', .true.)
 !
           open (lun_input, FILE=trim (directory_snap)//'/'//file, FORM='unformatted', &
                  access='stream', status='old')
-          varlen = int(mxgrid,kind=8)*mygrid*mzgrid*nv*sizeof_real()
-          read (lun_input, pos=varlen) t_sp, gx, gy, gz, dx, dy, dz
+          varlen = int(mxgrid, kind=8)*mygrid*mzgrid*nv*sizeof_real()
+          read (unit=lun_input, pos=varlen) t_sp, gx, gy, gz, dx, dy, dz
           call distribute_grid (x, y, z, gx, gy, gz)
           deallocate (gx, gy, gz)
         else

@@ -9,6 +9,8 @@
 #  Initiate some variables related to MPI and the calling sequence, and do
 #  other setup needed by both start.csh and run.csh.
 set debug = 1
+# collective io only needs the allprocs directory, not the whole procN tree
+set collective_io = 0
 # set verbose
 # set echo
 
@@ -235,6 +237,12 @@ endif
 if ($hn =~ mhd*.st-and.ac.uk) then
   echo "MHD machine - St Andrews "
   set mpirun = "dmpirun"
+
+else if ($hn =~node* && $masterhost =~ hummel2) then
+  echo "Running on Hummel Cluster at RRZ UNI Hamburg"
+  set mpirun = mpirun
+  set mpi = 1
+  set collective_io = 1
 
 else if ($hn =~ *.kis.uni-freiburg.de) then
   echo "KIS machines - Freiburg"
