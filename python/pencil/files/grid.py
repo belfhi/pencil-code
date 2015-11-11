@@ -17,6 +17,16 @@ def read_grid(*args, **kwargs):
 
     If proc < 0, then load all data and assemble. otherwise, load grid
     from specified processor.
+        
+        Parameter:
+        datadir='data/'
+        proc=-1
+        ivar=-1
+        quiet=False
+        allprocs=False
+        trim=False
+        format='native'
+        param=None
     """
     return Grid(*args, **kwargs)
 
@@ -24,7 +34,7 @@ def read_grid(*args, **kwargs):
 class Grid(object):
 
     def __init__(self, datadir='data/', proc=-1, ivar=-1, quiet=False,
-                 trim=False, format='native', param=None):
+                 allprocs=False, trim=False, format='native', param=None):
         """
         Read grid from pencil code. if proc < 0, then load all data
         and assemble. otherwise, load grid from specified processor.
@@ -38,11 +48,14 @@ class Grid(object):
         else:
             precision = 'f'
 
-        if proc < 0:
-            procdirs = filter(lambda s:s.startswith('proc'),
-                              os.listdir(datadir))
+        if not allprocs:
+            if proc < 0:
+                procdirs = filter(lambda s:s.startswith('proc'),
+                                  os.listdir(datadir))
+            else:
+                procdirs = ['proc'+str(proc)]
         else:
-            procdirs = ['proc'+str(proc)]
+            procdirs = [ 'allprocs' ]
 
         #global array
         x = N.zeros(dim.mx, dtype=precision)
@@ -56,8 +69,12 @@ class Grid(object):
         dz_tilde = N.zeros(dim.mz, dtype=precision)
 
         for directory in procdirs:
-            proc = int(directory[4:])
-            procdim = read_dim(datadir, proc)
+            if not allprocs:
+                proc = int(directory[4:])
+                procdim = read_dim(datadir, proc)
+            else:
+                proc = 0
+                procdim = dim
             if not quiet:
                 print "reading data from processor %i of %i ..." \
                       % (proc, len(procdirs))
