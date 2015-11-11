@@ -144,7 +144,7 @@ set mpirunops2 = ''  # options after -np $ncpus
 # clusters that have nodes called `node7', etc). Possibly, $masterhost and
 # $masternode could be merged, but in fact these might be different host
 # names
-set masterhost = ''
+set masterhost = 'hummel2'
 if ($?PBS_O_HOST) then
   if ("$PBS_O_HOST" =~ obelix*) set masterhost = 'obelix'
   if ("$PBS_O_HOST" =~ hyades*) set masterhost = 'hyades'
@@ -238,11 +238,12 @@ if ($hn =~ mhd*.st-and.ac.uk) then
   echo "MHD machine - St Andrews "
   set mpirun = "dmpirun"
 
-else if ($hn =~node* && $masterhost =~ hummel2) then
+else if ($hn =~ node* && $masterhost =~ hummel2) then
   echo "Running on Hummel Cluster at RRZ UNI Hamburg"
   set mpirun = mpirun
   set mpi = 1
   set collective_io = 1
+  set npops = "-np $ncpus"
 
 else if ($hn =~ *.kis.uni-freiburg.de) then
   echo "KIS machines - Freiburg"
@@ -1997,6 +1998,7 @@ if ($debug) then
   echo '$copysnapshots  = ' "<$copysnapshots>"
   echo '$particles      = ' "<$lparticles>"
   echo '$particles_nbody= ' "<$lparticles_nbody>"
+  echo '$collective_io  = ' "<$collective_io>"
 endif
 
 exit

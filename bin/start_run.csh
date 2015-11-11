@@ -50,7 +50,7 @@ source getconf.csh
 #  we need to copy these data first to the locak scratch disc, and
 #  then restart, i.e. jump to rerun.
 #
-if (-e "$datadir"/proc0/var.dat) then
+if (  -e "$datadir"/proc0/var.dat  || -e "$datadir"/allprocs/var.dat ) then
 #
 #  If necessary, distribute var.dat from the server to the various nodes
 #  Don't indent these lines so that it is easier to vimdiff against run.csh
@@ -149,25 +149,32 @@ endif
 # Create list of subdirectories
 # If the file NOERASE exists, the old directories are not erased
 #   (start.x also knows then that var.dat is not created)
-foreach dir ($procdirs $subdirs)
-  # Make sure a sufficient number of subdirectories exist
-  set ddir = "$datadir/$dir"
-  if (! -e $ddir) then
+if ($collective_io) then
+  foreach dir ($subdirs)
+    set ddir = "$datadir/$dir"
     mkdir $ddir
-  else if (! -e NOERASE) then
-    # Clean up
-    if ($dir == "allprocs" || $dir == "reduced") then
-      rm -f $ddir/VAR[0-9]* $ddir/PERS[0-9]* $ddir/grid.dat $ddir/dim.dat $ddir/varN.list >& /dev/null
-    else
-      rm -f $ddir/VAR[0-9]* $ddir/PERS[0-9]* $ddir/TAVG[0-9]* $ddir/*.info $ddir/slice* $ddir/PVAR[0-9]* $ddir/SPVAR[0-9]* $ddir/varN.list >& /dev/null
-      # in some cases var.dat needs to be conserved (eg. lnowrite=T)
-      set list = `/bin/ls $ddir/*.dat`
-      foreach rmfile ($list)
-        if ($rmfile != $ddir/var.dat && $rmfile != $ddir/pers.dat) rm -f $rmfile >& /dev/null
-      end
+  end
+else
+  foreach dir ($procdirs $subdirs)
+    # Make sure a sufficient number of subdirectories exist
+    set ddir = "$datadir/$dir"
+    if (! -e $ddir) then
+      mkdir $ddir
+    else if (! -e NOERASE) then
+      # Clean up
+      if ($dir == "allprocs" || $dir == "reduced") then
+        rm -f $ddir/VAR[0-9]* $ddir/PERS[0-9]* $ddir/grid.dat $ddir/dim.dat $ddir/varN.list >& /dev/null
+      else
+        rm -f $ddir/VAR[0-9]* $ddir/PERS[0-9]* $ddir/TAVG[0-9]* $ddir/*.info $ddir/slice* $ddir/PVAR[0-9]* $ddir/SPVAR[0-9]* $ddir/varN.list >& /dev/null
+        # in some cases var.dat needs to be conserved (eg. lnowrite=T)
+        set list = `/bin/ls $ddir/*.dat`
+        foreach rmfile ($list)
+          if ($rmfile != $ddir/var.dat && $rmfile != $ddir/pers.dat) rm -f $rmfile >& /dev/null
+        end
+      endif
     endif
-  endif
-end
+  end
+endif
 
 # Clean up previous runs
 if (! -e NOERASE) then
