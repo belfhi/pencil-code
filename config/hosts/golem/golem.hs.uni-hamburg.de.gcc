@@ -1,0 +1,13 @@
+#
+# golem cluster at hs hamburg 
+#
+%include compilers/GNU-GCC_MPI
+
+%section Makefile
+  FFLAGS+= -O3 
+  #LD=ifort -i-static 
+%endsection Makefile
+
+%section runtime
+  mpiexec=mpirun
+%endsection runtime
