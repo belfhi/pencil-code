@@ -308,7 +308,7 @@ module Io
       call MPI_TYPE_COMMIT (global_type, mpi_err)
       call check_success ('output', 'commit global type', file)
 !
-      call MPI_FILE_DELETE (MPI_COMM_WORLD, trim (directory_snap)//'/'//file, mpi_err)
+      call MPI_FILE_DELETE (trim (directory_snap)//'/'//file, io_info, mpi_err)
       call MPI_FILE_OPEN (MPI_COMM_WORLD, trim (directory_snap)//'/'//file, &
                           MPI_MODE_CREATE+MPI_MODE_WRONLY, io_info, handle, mpi_err)
       call check_success ('output', 'open', trim (directory_snap)//'/'//file)
