@@ -15,7 +15,7 @@
 ! MVAR CONTRIBUTION 3
 ! MAUX CONTRIBUTION 0
 !
-! PENCILS PROVIDED aa(3); a2; aij(3,3); bb(3); bbb(3); ab; ua; exa(3)
+! PENCILS PROVIDED aa(3); a2; aij(3,3); bb(3); bbb(3); ab; ua; ub; exa(3)
 ! PENCILS PROVIDED b2; bf2; bij(3,3); del2a(3); graddiva(3); jj(3); e3xa(3)
 ! PENCILS PROVIDED j2; jb; va2; jxb(3); jxbr(3); jxbr2; ub; uxb(3); uxb2
 ! PENCILS PROVIDED uxj(3); chibp; beta; beta1; uga(3); djuidjbi; jo
@@ -313,6 +313,7 @@ module Magnetic
 !
   integer :: idiag_ab_int=0     ! DIAG_DOC: $\int\Av\cdot\Bv\;dV$
   integer :: idiag_jb_int=0     ! DIAG_DOC: $\int\jv\cdot\Bv\;dV$
+  integer :: idiag_ub_int=0     ! DIAG_DOC: $\int\uv\cdot\Bv\;dV$ Cross Helicity
   integer :: idiag_b2tm=0       ! DIAG_DOC: $\left<\bv(t)\cdot\int_0^t\bv(t')
                                 ! DIAG_DOC:   dt'\right>$
   integer :: idiag_bjtm=0       ! DIAG_DOC: $\left<\bv(t)\cdot\int_0^t\jv(t')
@@ -2109,6 +2110,7 @@ module Magnetic
           .or. idiag_abumx/=0 .or. idiag_abumy/=0 .or. idiag_abumz/=0 &
           .or. idiag_abuxmz/=0 .or. idiag_abuymz/=0 .or. idiag_abuzmz/=0 &
          ) lpenc_diagnos(i_ab)=.true.
+      if (idiag_ub_int/=0) lpenc_diagnos(i_ub)=.true.
       if (idiag_abmxy/=0) lpenc_diagnos2d(i_ab)=.true.
 !
       if (idiag_uam/=0 .or. idiag_uamz/=0) lpenc_diagnos(i_ua)=.true.
@@ -4043,6 +4045,10 @@ module Magnetic
 !
         if (idiag_ab_int/=0) call integrate_mn_name(p%ab,idiag_ab_int)
         if (idiag_jb_int/=0) call integrate_mn_name(p%jb,idiag_jb_int)
+!
+!  Cross Helicity Integral
+!    
+        if (idiag_ub_int/=0) call integrate_mn_name(p%ub,idiag_ub_int)
 !
 ! <J.B>
 !
@@ -7291,7 +7297,8 @@ module Magnetic
 !  (this needs to be consistent with what is defined above!)
 !
       if (lreset) then
-        idiag_ab_int=0; idiag_jb_int=0; idiag_b2tm=0; idiag_bjtm=0; idiag_jbtm=0
+        idiag_ab_int=0; idiag_jb_int=0; idiag_ub_int=0
+        idiag_b2tm=0; idiag_bjtm=0; idiag_jbtm=0
         idiag_b2uzm=0; idiag_b2ruzm=0; idiag_ubbzm=0; idiag_b1m=0; idiag_b2m=0
         idiag_bm2=0; idiag_j2m=0; idiag_jm2=0
         idiag_abm=0; idiag_abrms=0; idiag_jbrms=0; idiag_abmh=0
@@ -7404,6 +7411,7 @@ module Magnetic
       do iname=1,nname
         call parse_name(iname,cname(iname),cform(iname),'ab_int',idiag_ab_int)
         call parse_name(iname,cname(iname),cform(iname),'jb_int',idiag_jb_int)
+        call parse_name(iname,cname(iname),cform(iname),'ub_int',idiag_ub_int)
         call parse_name(iname,cname(iname),cform(iname),'dteta',idiag_dteta)
         call parse_name(iname,cname(iname),cform(iname),'aybym2',idiag_aybym2)
         call parse_name(iname,cname(iname),cform(iname),'exaym2',idiag_exaym2)
