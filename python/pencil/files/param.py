@@ -9,6 +9,7 @@ todo: think about single/double precision; make things into numpy arrays?
 """
 import numpy as N
 import os
+import runpy
 
 def read_param(datadir='data/',param2=False,quiet=False):
 
@@ -25,21 +26,22 @@ def read_param(datadir='data/',param2=False,quiet=False):
 
     # execute output of nl2python script
     if (not os.path.exists(filen)):
-        print "read_param: no such file",filen
+        print("read_param: no such file",filen)
         raise ValueError
     
+    globs = globals()
     cmd = 'nl2python '+filen
     script = os.popen(cmd).read()
-    if (not quiet): print script;
+    if (not quiet): print(script);
     if (len(script) != 0):
-        exec(script)
+        exec(script, globs)
     else:
-        print "read_param: nl2python returned nothing! is $PENCIL_HOME/bin in the path?"
+        print("read_param: nl2python returned nothing! is $PENCIL_HOME/bin in the path?")
         return -1
     
-    ret = Params() # par is the name of the class
+    ret = globs.get('Params') # par is the name of the class
 
-    return ret
+    return ret()
 
 if __name__ == '__main__':
-   print self.__doc__ 
+   print(self.__doc__) 

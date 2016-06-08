@@ -6,10 +6,10 @@
 #
 #
 import numpy as N
-from npfile import npfile
+from .npfile import npfile
 import os
-from param import read_param
-from dim import read_dim
+from .param import read_param
+from .dim import read_dim
 
 
 def read_grid(*args, **kwargs):
@@ -50,8 +50,7 @@ class Grid(object):
 
         if not allprocs:
             if proc < 0:
-                procdirs = filter(lambda s:s.startswith('proc'),
-                                  os.listdir(datadir))
+                procdirs = [s for s in os.listdir(datadir) if s.startswith('proc')]
             else:
                 procdirs = ['proc'+str(proc)]
         else:
@@ -76,8 +75,8 @@ class Grid(object):
                 proc = 0
                 procdim = dim
             if not quiet:
-                print "reading data from processor %i of %i ..." \
-                      % (proc, len(procdirs))
+                print("reading data from processor %i of %i ..." \
+                      % (proc, len(procdirs)))
 
             mxloc = procdim.mx
             myloc = procdim.my
