@@ -66,7 +66,7 @@ class npfile(object):
                  order = 'C'):
         if 'b' not in permission: permission += 'b'
         if isinstance(file_name, str):
-            self.file = file(file_name, permission)
+            self.file = open(file_name, permission)
         else:
             try:
                 closed = file_name.closed
