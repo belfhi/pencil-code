@@ -255,7 +255,6 @@ module Io
 !  04-Sep-2015/PABourdin: adapted from 'io_collect_xy'
 !
       use Mpicomm, only: localize_xy, mpibcast_real, stop_it_if_any
-      use Syscalls, only: sizeof_real
       use General, only: backskip_to_time
 !
       character (len=*) :: file

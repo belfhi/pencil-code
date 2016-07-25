@@ -424,7 +424,13 @@ module Mpicomm
 !  20-aug-01/wolf: coded
 !  29-jul-2010/anders: separate subroutine
 !
-      use Syscalls, only: sizeof_real
+      real :: r_check = 1.0
+      integer :: rsize
+!
+!  Now using F2008 intrinsic to check double precision
+!  it is in bits thoug, to division by 8 is necessary
+!
+      rsize = storage_size(r_check)/8
 !
       lmpicomm = .true.
       call MPI_INIT(mpierr)
@@ -432,7 +438,7 @@ module Mpicomm
       call MPI_COMM_RANK(MPI_COMM_WORLD, iproc, mpierr)
       lroot = (iproc==root)
 !
-      if (sizeof_real() < 8) then
+      if (rsize < 8) then
         mpi_precision = MPI_REAL
         if (lroot) then
           write (*,*) ""

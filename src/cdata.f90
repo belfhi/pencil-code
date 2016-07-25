@@ -108,7 +108,7 @@ module Cdata
 !  Time integration parameters.
 !
   integer :: nt=10000000, it=1, itorder=3, itsub=0, it_timing=0
-  real :: tmax=1e33, tstart=0.0
+  real :: tmax=1e33, tstart=0.0, redshift0=0.0
   real :: max_walltime=0.0  ! in seconds
   double precision :: t=0.
   real :: dt=0.0

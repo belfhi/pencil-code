@@ -15,7 +15,7 @@
 ! MVAR CONTRIBUTION 3
 ! MAUX CONTRIBUTION 0
 !
-! PENCILS PROVIDED aa(3); a2; aij(3,3); bb(3); bbb(3); ab; ua; ub; exa(3)
+! PENCILS PROVIDED aa(3); a2; aij(3,3); bb(3); bbb(3); ab; ua; exa(3)
 ! PENCILS PROVIDED b2; bf2; bij(3,3); del2a(3); graddiva(3); jj(3); e3xa(3)
 ! PENCILS PROVIDED j2; jb; va2; jxb(3); jxbr(3); jxbr2; ub; uxb(3); uxb2
 ! PENCILS PROVIDED uxj(3); chibp; beta; beta1; uga(3); djuidjbi; jo
@@ -154,6 +154,7 @@ module Magnetic
   logical :: lresi_etaSS=.false.
   logical :: lresi_hyper2=.false.
   logical :: lresi_hyper3=.false.
+  logical :: lresi_hyper3_zdep=.false.
   logical :: lresi_hyper3_polar=.false.
   logical :: lresi_hyper3_mesh=.false.
   logical :: lresi_hyper3_strict=.false.
@@ -219,6 +220,7 @@ module Magnetic
 !
   real :: eta=0.0, eta1=0.0, eta_hyper2=0.0, eta_hyper3=0.0
   real :: eta_hyper3_mesh=5.0, eta_spitzer=0., eta_anom=0.0
+  real :: eta_variable=0.0, zredshift=0.0
   real :: eta_int=0.0, eta_ext=0.0, wresistivity=0.01, eta_xy_max=1.0
   real :: height_eta=0.0, eta_out=0.0, eta_cspeed=0.
   real :: tau_aa_exterior=0.0
@@ -344,6 +346,7 @@ module Magnetic
   integer :: idiag_jbmn=0       ! DIAG_DOC: $\left<\Jv\cdot\Bv\right>$ (north)
   integer :: idiag_jbms=0       ! DIAG_DOC: $\left<\Jv\cdot\Bv\right>$ (south)
   integer :: idiag_ubm=0        ! DIAG_DOC: $\left<\uv\cdot\Bv\right>$
+  integer :: idiag_ubrms=0      ! DIAG_DOC: $\left<(\uv\cdot\Bv)^2\right>^{1/2}$
   integer :: idiag_dubrms=0     ! DIAG_DOC: $\left<(\uv-\Bv)^2\right>^{1/2}$
   integer :: idiag_dobrms=0     ! DIAG_DOC: $\left<(\boldsymbol{\omega}-\Bv)^2
                                 ! DIAG_DOC: \right>^{1/2}$
@@ -1049,6 +1052,7 @@ module Magnetic
       lresi_sqrtrhoeta_const=.false.
       lresi_hyper2=.false.
       lresi_hyper3=.false.
+      lresi_hyper3_zdep=.false.
       lresi_hyper3_polar=.false.
       lresi_hyper3_mesh=.false.
       lresi_hyper3_strict=.false.
@@ -1084,6 +1088,9 @@ module Magnetic
         case ('hyper3')
           if (lroot) print*, 'resistivity: hyper3'
           lresi_hyper3=.true.
+        case ('hyper3-zdep')
+          if (lroot) print*, 'resistivity: hyper3, z dependent'
+          lresi_hyper3_zdep=.true.
         case ('hyper3_cyl','hyper3-cyl','hyper3_sph','hyper3-sph')
           if (lroot) print*, 'resistivity: hyper3 curvilinear'
           lresi_hyper3_polar=.true.
@@ -1985,7 +1992,7 @@ module Magnetic
            lpenc_requested(i_diva)=.true.
       if (lresi_smagorinsky_cross) lpenc_requested(i_jo)=.true.
       if (lresi_hyper2) lpenc_requested(i_del4a)=.true.
-      if (lresi_hyper3) lpenc_requested(i_del6a)=.true.
+      if (lresi_hyper3 .or. lresi_hyper3_zdep) lpenc_requested(i_del6a)=.true.
 !
 !  Note that for the cylindrical case, according to lpencil_check,
 !  graddiva is not needed. We still need it for the lspherical_coords
@@ -2110,7 +2117,6 @@ module Magnetic
           .or. idiag_abumx/=0 .or. idiag_abumy/=0 .or. idiag_abumz/=0 &
           .or. idiag_abuxmz/=0 .or. idiag_abuymz/=0 .or. idiag_abuzmz/=0 &
          ) lpenc_diagnos(i_ab)=.true.
-      if (idiag_ub_int/=0) lpenc_diagnos(i_ub)=.true.
       if (idiag_abmxy/=0) lpenc_diagnos2d(i_ab)=.true.
 !
       if (idiag_uam/=0 .or. idiag_uamz/=0) lpenc_diagnos(i_ua)=.true.
@@ -2137,8 +2143,8 @@ module Magnetic
       if (idiag_jbmphi/=0 .or. idiag_jbmxy/=0) lpenc_diagnos2d(i_jb)=.true.
       if (idiag_vArms/=0 .or. idiag_vAmax/=0 .or. idiag_vA2m/=0) lpenc_diagnos(i_va2)=.true.
       if (idiag_cosubm/=0) lpenc_diagnos(i_cosub)=.true.
-      if (idiag_ubm/=0 .or. idiag_ubmz/=0 &
-          .or. idiag_ubbzm/=0) lpenc_diagnos(i_ub)=.true.
+      if (idiag_ub_int/=0 .or. idiag_ubm/=0 .or. idiag_ubmz/=0 &
+          .or. idiag_ubbzm/=0 .or. idiag_ubrms/=0) lpenc_diagnos(i_ub)=.true.
 !
       if (idiag_djuidjbim/=0 .or. idiag_uxDxuxbm/=0) lpenc_diagnos(i_uij)=.true.
       if (idiag_uxjm/=0) lpenc_diagnos(i_uxj)=.true.
@@ -3217,6 +3223,13 @@ module Magnetic
         if (lfirst.and.ldt) diffus_eta3=diffus_eta3+eta_hyper3
       endif
 !
+      if (lresi_hyper3_zdep) then
+        zredshift = (1.0D0+redshift0)*exp(-2.0/3.0*t)-1.0D0
+        eta_variable=exp(-zredshift/3000.)*eta_hyper3
+        fres=fres+eta_variable*p%del6a
+        if (lfirst.and.ldt) diffus_eta3=diffus_eta3+eta_variable
+      endif
+!
       if (lresi_hyper3_polar) then
         do j=1,3
           ju=j+iaa-1
@@ -3901,6 +3914,7 @@ module Magnetic
         if (idiag_abumz/=0) call sum_mn_name(p%uu(:,3)*p%ab,idiag_abumz)
         if (idiag_abrms/=0) call sum_mn_name(p%ab**2,idiag_abrms,lsqrt=.true.)
         if (idiag_jbrms/=0) call sum_mn_name(p%jb**2,idiag_jbrms,lsqrt=.true.)
+        if (idiag_ubrms/=0) call sum_mn_name(p%ub**2,idiag_ubrms,lsqrt=.true.)
 !
 !  Hemispheric magnetic helicity of total field.
 !  North means 1 and south means 2.
@@ -7305,7 +7319,7 @@ module Magnetic
         idiag_abumx=0; idiag_abumy=0; idiag_abumz=0
         idiag_abmn=0; idiag_abms=0; idiag_jbmh=0; idiag_jbmn=0; idiag_jbms=0
         idiag_ajm=0; idiag_cosubm=0; idiag_jbm=0; idiag_hjbm=0
-        idiag_uam=0; idiag_ubm=0; idiag_dubrms=0; idiag_dobrms=0; idiag_ujm=0
+        idiag_uam=0; idiag_ubm=0; idiag_ubrms=0; idiag_dubrms=0; idiag_dobrms=0; idiag_ujm=0
         idiag_uxbxm=0; idiag_uybxm=0; idiag_uzbxm=0
         idiag_uxbym=0; idiag_uybym=0; idiag_uzbym=0
         idiag_uxbzm=0; idiag_uybzm=0; idiag_uzbzm=0
@@ -7435,6 +7449,7 @@ module Magnetic
         call parse_name(iname,cname(iname),cform(iname),'jbmn',idiag_jbmn)
         call parse_name(iname,cname(iname),cform(iname),'jbms',idiag_jbms)
         call parse_name(iname,cname(iname),cform(iname),'ubm',idiag_ubm)
+        call parse_name(iname,cname(iname),cform(iname),'ubrms',idiag_ubrms)
         call parse_name(iname,cname(iname),cform(iname),'dubrms',idiag_dubrms)
         call parse_name(iname,cname(iname),cform(iname),'dobrms',idiag_dobrms)
         call parse_name(iname,cname(iname),cform(iname),'uxbxm',idiag_uxbxm)

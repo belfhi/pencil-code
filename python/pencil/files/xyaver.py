@@ -27,9 +27,8 @@ def read_xyaver(varfile='xyaverages.dat',datadir='data/', quiet=0):
     nz = dim.nz
     datatopdir = re.sub('data\/*$','',datadir)
 
-    infile = open(datatopdir+'xyaver.in')
-    variables = [line.strip() for line in infile.readlines()]
-    infile.close()
+    with open(datatopdir+'xyaver.in') as infile:
+        variables = [line.strip() for line in infile.readlines()]
     
     #gotta be a better way to do this...
     n_lines = int(getoutput('wc '+datadir+'/'+varfile).split()[0])
@@ -40,13 +39,13 @@ def read_xyaver(varfile='xyaverages.dat',datadir='data/', quiet=0):
     rec_length = 1 + n_vars*nz/8
     if nz%8:
         rec_length += 1
-    n_data_records = n_lines/rec_length
+    n_data_records = int(n_lines/rec_length)
     if (not quiet):
         print("%s: reading %i records" % (__name__,n_data_records))
     
     # change the hardcode dtype!
     t = []
-    var_tmp = dict(list(zip(variables,[[] for var in variables])))
+    var_tmp = dict(zip(variables,[[] for var in variables]))
     for i in range(n_data_records):
         t.extend(N.fromfile(datafile,dtype='float32',count=1,sep=' '))
         for var in variables:

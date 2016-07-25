@@ -1058,6 +1058,8 @@ module Hydro
           ! Ensure really is zero, as may have used lread_oldsnap
           f(:,:,:,iux:iuz)=0.
         case ('const_uu','const-uu'); do i=1,3; f(:,:,:,iuu+i-1) = uu_const(i); enddo
+        case ('random_isotropic_shell')
+          call random_isotropic_shell(f,iux,ampluu(j))
         case('smooth_step_ux')
           xhalf= 0.5*(xyz1(1)+xyz0(1))
           do iy=m1,m2;do iz=n1,n2

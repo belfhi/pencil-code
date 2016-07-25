@@ -12,8 +12,8 @@
 ! MVAR CONTRIBUTION 0
 ! MAUX CONTRIBUTION 0
 !
-! PENCILS PROVIDED fvisc(3); diffus_total; diffus_total2; diffus_total3
-! PENCILS PROVIDED visc_heat; nu; gradnu(3)
+! PENCILS PROVIDED fvisc(3); diffus_total; diffus_total2; diffus_total3;
+! PENCILS PROVIDED visc_heat; nu; gradnu(3);
 !
 !***************************************************************
 module Viscosity
@@ -31,10 +31,10 @@ module Viscosity
   character (len=labellen), dimension(nvisc_max) :: ivisc=''
   character (len=labellen) :: lambda_profile='uniform'
   real :: nu=0.0, nu_tdep=0.0, nu_tdep_exponent=0.0, nu_tdep_t0=0.0
-  real :: zeta=0.0, nu_mol=0.0, nu_hyper2=0.0, nu_hyper3=0.0
+  real :: zeta=0.0, nu_mol=0.0, nu_hyper2=0.0, nu_hyper3=0.0, nu_zdep=0.0
   real :: nu_hyper3_mesh=5.0, nu_shock=0.0,nu_spitzer=0.0
   real :: nu_jump=1.0, xnu=1.0, xnu2=1.0, znu=1.0, widthnu=0.1, widthnu2=0.1
-  real :: C_smag=0.0, gamma_smag=0.0, nu_jump2=1.0
+  real :: C_smag=0.0, gamma_smag=0.0, nu_jump2=1.0, drag_coeff=0.0, alpha_const=0.0
   real :: znu_shock=1.0, widthnu_shock=0.1, nu_jump_shock=1.0
   real :: xnu_shock=1.0
   real :: pnlaw=0.0, Lambda_V0=0.,Lambda_V1=0.,Lambda_H1=0.
@@ -45,6 +45,8 @@ module Viscosity
   real :: PrM_turb=0.0
   real :: meanfield_nuB=0.0
   real :: nu_infinity=0.,nu0=0.,non_newton_lambda=0.,carreau_exponent=0.
+  real :: zredshift=0.0, ion_frac=1.0, mp=1.6726219D-27, sigma_T=6.652458734D-29
+  real :: rho_gamma0=4.645D-31, rho_gamma=0.0, a_scale=0.0, tcosmo=1.4D10
   character (len=labellen) :: nnewton_type='none'
   real :: nnewton_tscale=0.0,nnewton_step_width=0.0
   real, dimension(nx) :: xmask_vis=0
@@ -87,6 +89,7 @@ module Viscosity
   logical :: lvisc_hyper3_nu_const_aniso=.false.
   logical :: lvisc_hyper3_rho_nu_const_bulk=.false.
   logical :: lvisc_hyper3_nu_const=.false.
+  logical :: lvisc_hyper3_nu_zdep=.false.
   logical :: lvisc_smag_simplified=.false.
   logical :: lvisc_smag_cross_simplified=.false.
   logical :: lvisc_snr_damp=.false.
@@ -98,6 +101,8 @@ module Viscosity
   logical :: lmeanfield_nu=.false.
   logical :: lmagfield_nu=.false.
   logical :: llambda_effect=.false.
+  logical :: lvisc_alpha_drag=.false.
+  logical :: lvisc_alpha_const=.false.
   logical :: luse_nu_rmn_prof=.false.
   logical, pointer:: lviscosity_heat
   logical :: lKit_Olem
@@ -112,13 +117,16 @@ module Viscosity
       pnlaw,llambda_effect,Lambda_V0,Lambda_V1,Lambda_H1, nu_hyper3_mesh, &
       lambda_profile,rzero_lambda,wlambda,r1_lambda,r2_lambda,rmax_lambda,&
       offamp_lambda,lambda_jump,lmeanfield_nu,lmagfield_nu,meanfield_nuB, &
-      PrM_turb, roffset_lambda, nu_spitzer, nu_jump2,&
-      widthnu_shock, znu_shock, xnu_shock, nu_jump_shock, &
+      PrM_turb, roffset_lambda, nu_spitzer, nu_jump2, &
+      widthnu_shock, znu_shock, xnu_shock, nu_jump_shock, alpha_const, &
       nnewton_type,nu_infinity,nu0,non_newton_lambda,carreau_exponent,&
       nnewton_tscale,nnewton_step_width,lKit_Olem,damp_sound,luse_nu_rmn_prof, &
       lvisc_slope_limited, h_slope_limited, islope_limiter, nu_sld_thresh
 !
 ! other variables (needs to be consistent with reset list below)
+  integer :: idiag_zredshift=0  ! DIAG_DOC: redshift $z=(z_0-1)*\exp(-2/3*t)-1$
+  integer :: idiag_ion_frac=0   ! DIAG_DOC: ionization fraction from CosmoRec
+  integer :: idiag_alpha_drag=0 ! DIAG_DOC: drag coefficient $\alpha$
   integer :: idiag_nu_tdep=0    ! DIAG_DOC: time-dependent viscosity
   integer :: idiag_fviscm=0     ! DIAG_DOC: Mean value of viscous acceleration
   integer :: idiag_fviscmin=0   ! DIAG_DOC: Min value of viscous acceleration
@@ -389,6 +397,10 @@ module Viscosity
           if (lroot) print*,'viscous force: nu*(del6u+S.glnrho)'
           lpenc_requested(i_uij5)=.true.
           lvisc_hyper3_nu_const=.true.
+        case ('zdephyper3-nu-zdep')
+          if (lroot) print*,'viscous force: nu_zdep*(del6u+S.glnrho)'
+          lpenc_requested(i_uij5)=.true.
+          lvisc_hyper3_nu_zdep=.true.
         case ('smagorinsky-simplified','smagorinsky_simplified')
           if (lroot) print*,'viscous force: Smagorinsky_simplified'
           if (lroot) lvisc_LES=.true.
@@ -408,6 +420,12 @@ module Viscosity
           if (lroot) print*,'viscous force: temperature dependent nu'
           lpenc_requested(i_sij)=.true.
           lvisc_spitzer=.true.
+        case ('alpha-drag')
+          if (lroot) print*,'viscous force: reionization alpha drag force: f_visc = alpha * u'
+          lvisc_alpha_drag=.true.
+        case ('alpha-const')
+          if (lroot) print*,'viscous force: alpha drag with constant alpha'
+          lvisc_alpha_const=.true.
         case ('none',' ')
           ! do nothing
         case default
@@ -739,13 +757,17 @@ module Viscosity
         idiag_nu_tdep=0; idiag_fviscm=0 ; idiag_fviscrmsx=0
         idiag_fviscmz=0; idiag_fviscmx=0; idiag_fviscmxy=0
         idiag_epsKmz=0; idiag_numx=0; idiag_fviscymxy=0 
-        idiag_nusldmax=0; idiag_dtnusld=0
+        idiag_nusldmax=0; idiag_dtnusld=0 
+        idiag_zredshift=0; idiag_ion_frac=0; idiag_alpha_drag=0
       endif
 !
 !  iname runs through all possible names that may be listed in print.in
 !
       if (lroot.and.ip<14) print*,'rprint_viscosity: run through parse list'
       do iname=1,nname
+        call parse_name(iname,cname(iname),cform(iname),'zredshift',idiag_zredshift)
+        call parse_name(iname,cname(iname),cform(iname),'ion_frac',idiag_ion_frac)
+        call parse_name(iname,cname(iname),cform(iname),'alpha_drag',idiag_alpha_drag)
         call parse_name(iname,cname(iname),cform(iname),'nu_tdep',idiag_nu_tdep)
         call parse_name(iname,cname(iname),cform(iname),'fviscm',idiag_fviscm)
         call parse_name(iname,cname(iname),cform(iname),'fviscmin',idiag_fviscmin)
@@ -1035,6 +1057,7 @@ module Viscosity
       use Deriv, only: der5i1j,der6
       use Diagnostics, only: max_mn_name, sum_mn_name
       use Sub
+      use, intrinsic :: iso_c_binding
 !
       real, dimension (mx,my,mz,mfarray) :: f
       type (pencil_case) :: p
@@ -1048,6 +1071,17 @@ module Viscosity
       integer :: i,j,ju,ii,jj,kk,ll,count
 !
       intent(inout) :: f,p
+!***********************************************************************
+!
+! Interface to CosmoRec routine
+!
+      interface 
+        subroutine calc_xe(z,xe) bind( c,name="Compute_Xe" )
+          use, intrinsic :: iso_c_binding
+          real(kind=c_float ) :: z
+          real(kind=c_float ) :: xe
+        end subroutine calc_xe
+      end interface
 !
 !  Viscous force and viscous heating are calculated here (for later use).
 !
@@ -1258,6 +1292,31 @@ module Viscosity
         if (lpencil(i_visc_heat)) p%visc_heat=p%visc_heat+2*nu_tdep*p%sij2
         if (lfirst .and. ldt) p%diffus_total=p%diffus_total+nu_tdep
       endif
+!
+!  Viscous damping through drag forces alpha*u
+!  alpha calculated with CosmoRec routine by Jens Chluba
+! 
+      if (lvisc_alpha_drag) then
+        if (redshift0 == 0) call fatal_error( 'calc_pencils_viscosity', &
+            'Cannot start recomb simulation from z=0')
+        zredshift = (1.0D0+redshift0)*exp(-2.0/3.0*t)-1.0D0
+        !a_scale = 1.0/(1.0 + zredshift)
+        !rho_gamma = rho_gamma0*a_scale**(-4)
+        call calc_xe(zredshift, ion_frac)
+        drag_coeff = 5.39D-06*ion_frac*(1.0D0 + zredshift)**(5.0/2.0)
+        !drag_coeff = alpha_drag*ion_frac
+        do i=1,3
+          p%fvisc(:,i)=p%fvisc(:,i)-drag_coeff*p%uu(:,i)
+        enddo
+      endif
+!
+!  Viscous force: alpha drag with constant alpha to verify analytical solution
+!
+   if (lvisc_alpha_const) then
+       do i=1,3
+         p%fvisc(:,i)=p%fvisc(:,i)-alpha_const*p%uu(:,i)
+       enddo
+   endif
 !
 !  Viscous force: nu*(del2u+graddivu/3+2S.glnrho)+2S.gradnu
 !
@@ -1667,8 +1726,11 @@ module Viscosity
 !  your Makefile.local.
 !
       if (lvisc_hyper3_nu_const_strict) then
+        zredshift = (1.0D0+redshift0)*exp(-2.0/3.0*t)-1.0D0
+        call calc_xe(zredshift,ion_frac)
         do i=1,3
-          p%fvisc(:,i)=p%fvisc(:,i)+nu_hyper3*f(l1:l2,m,n,ihypvis-1+i)
+          p%fvisc(:,i)=p%fvisc(:,i)+(1.16-ion_frac)*nu_hyper3*f(l1:l2,m,n,ihypvis-1+i)
+          !p%fvisc(:,i)=p%fvisc(:,i)+nu_hyper3*f(l1:l2,m,n,ihypvis-1+i)
         enddo
         if (lpencil(i_visc_heat)) then
           if (headtt) then
@@ -1760,6 +1822,21 @@ module Viscosity
           endif
         endif
         if (lfirst .and. ldt) p%diffus_total3=p%diffus_total3+nu_hyper3
+      endif
+!
+!  viscous force: nu_hyper3*(del6u+S.glnrho), with z-dependent nu_hyper3
+!
+      if (lvisc_hyper3_nu_zdep) then
+        zredshift = (1.0D0+redshift0)*exp(-2.0/3.0*t)-1.0D0
+        nu_zdep=nu_hyper3*exp(-zredshift/3000.0)
+        p%fvisc=p%fvisc+nu_zdep*(p%del6u+p%uij5glnrho)
+        if (lpencil(i_visc_heat)) then  ! Heating term not implemented
+          if (headtt) then
+            call warning('calc_pencils_viscosity', 'viscous heating term '// &
+              'is not implemented for lvisc_hyper3_nu_const')
+          endif
+        endif
+        if (lfirst .and. ldt) p%diffus_total3=p%diffus_total3+nu_zdep
       endif
 !
 !  viscous force: Handle damping at the core of SNRs
@@ -2073,6 +2150,9 @@ module Viscosity
 !
       if (ldiagnos) then
         if (idiag_nu_tdep/=0)  call sum_mn_name(spread(nu_tdep,1,nx),idiag_nu_tdep)
+        if (idiag_zredshift/=0)  call sum_mn_name(spread(zredshift,1,nx),idiag_zredshift)
+        if (idiag_ion_frac/=0)  call sum_mn_name(spread(ion_frac,1,nx),idiag_ion_frac)
+        if (idiag_alpha_drag/=0)  call sum_mn_name(spread(drag_coeff,1,nx),idiag_alpha_drag)
         !!!if (idiag_fviscm/=0)   call sum_mn_name(p%fvisc,idiag_fviscm)   !What is intended here? p%fvisc is a vector!!
         if (idiag_fviscm/=0)   call sum_mn_name(p%fvisc(:,1),idiag_fviscm)
         if (idiag_fviscmin/=0) call max_mn_name(-p%fvisc,idiag_fviscmin,lneg=.true.)

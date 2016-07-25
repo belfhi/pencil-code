@@ -27,6 +27,7 @@ module Io
   use Messages, only: fatal_error, svn_id
   use General, only: delete_file
   use mpi
+  use Mpicomm
 !
   implicit none
 !
@@ -270,7 +271,6 @@ module Io
 !  13-feb-2014/MR: made file optional (prep for downsampled output)
 !
       use Mpicomm, only: globalize_xy, collect_grid, mpi_precision
-      use Syscalls, only: sizeof_real
 !
       integer, intent(in) :: nv
       real, dimension (mx,my,mz,nv), intent(in) :: a
@@ -280,6 +280,8 @@ module Io
       real, dimension (:), allocatable :: gx, gy, gz
       integer :: handle, alloc_err
       real :: t_sp   ! t in single precision for backwards compatibility
+      real :: r_check=1.0
+      integer :: rsize
       integer(kind=8) :: varlen
 !
       if (.not. present (file)) call fatal_error ( &
@@ -291,6 +293,7 @@ module Io
       local_size(4) = nv
       global_size(4) = nv
       subsize(4) = nv
+      rsize = storage_size(r_check)/8
 !
 ! Create 'local_type' to be the local data portion that is being saved.
 !
@@ -327,6 +330,44 @@ module Io
 !
       ! write additional data:
       if (lwrite_add) then
+        !call MPI_FILE_OPEN (MPI_COMM_XBEAM, trim (directory_snap)//'/'//file, &
+        !                    MPI_MODE_WRONLY, io_info, handle, mpi_err)
+        !call MPI_TYPE_CREATE_SUBARRAY (1, local_size(1), subsize(1), local_start(1), &
+        !                               order, mpi_precision, local_type, mpi_err)
+        !call MPI_TYPE_COMMIT (local_type, mpi_err)
+        !call MPI_TYPE_CREATE_SUBARRAY (1, global_size(1), subsize(1), global_start(1), &
+        !                               order, mpi_precision, global_type, mpi_err)
+        !call MPI_TYPE_COMMIT (global_type, mpi_err)
+        !call MPI_FILE_SET_VIEW (handle, displacement, mpi_precision, &
+        !                        global_type, 'native', io_info, mpi_err)
+        !call MPI_FILE_WRITE_ALL(handle, x, 1, local_type, status, mpi_err)
+        !call MPI_FILE_CLOSE(handle, mpi_err)
+        !!
+        !call MPI_FILE_OPEN (MPI_COMM_YBEAM, trim (directory_snap)//'/'//file, &
+        !                    MPI_MODE_WRONLY, io_info, handle, mpi_err)
+        !call MPI_TYPE_CREATE_SUBARRAY (1, local_size(2), subsize(2), local_start(2), &
+        !                               order, mpi_precision, local_type, mpi_err)
+        !call MPI_TYPE_COMMIT (local_type, mpi_err)
+        !call MPI_TYPE_CREATE_SUBARRAY (1, global_size(2), subsize(2), global_start(2), &
+        !                               order, mpi_precision, global_type, mpi_err)
+        !call MPI_TYPE_COMMIT (global_type, mpi_err)
+        !call MPI_FILE_SET_VIEW (handle, displacement, mpi_precision, &
+        !                        global_type, 'native', io_info, mpi_err)
+        !call MPI_FILE_WRITE_ALL(handle, x, 1, local_type, status, mpi_err)
+        !call MPI_FILE_CLOSE(handle, mpi_err)
+        !!
+        !call MPI_FILE_OPEN (MPI_COMM_ZBEAM, trim (directory_snap)//'/'//file, &
+        !                    MPI_MODE_WRONLY, io_info, handle, mpi_err)
+        !call MPI_TYPE_CREATE_SUBARRAY (1, local_size(3), subsize(3), local_start(3), &
+        !                               order, mpi_precision, local_type, mpi_err)
+        !call MPI_TYPE_COMMIT (local_type, mpi_err)
+        !call MPI_TYPE_CREATE_SUBARRAY (1, global_size(3), subsize(3), global_start(3), &
+        !                               order, mpi_precision, global_type, mpi_err)
+        !call MPI_TYPE_COMMIT (global_type, mpi_err)
+        !call MPI_FILE_SET_VIEW (handle, displacement, mpi_precision, &
+        !                        global_type, 'native', io_info, mpi_err)
+        !call MPI_FILE_WRITE_ALL(handle, z, 1, local_type, status, mpi_err)
+        !call MPI_FILE_CLOSE(handle, mpi_err)
         if (lroot) then
           allocate (gx(mxgrid), gy(mygrid), gz(mzgrid), stat=alloc_err)
           if (alloc_err > 0) call fatal_error ( & 
@@ -335,9 +376,9 @@ module Io
 !
           open (lun_output, FILE=trim (directory_snap)//'/'//file, FORM='unformatted', &
                 access='stream',status='old')
-          varlen = int(mxgrid,kind=8)*mygrid*mzgrid*nv*sizeof_real()
+          varlen = int(mxgrid,kind=8)*mygrid*mzgrid*nv*rsize
           t_sp = t
-          write (lun_output, pos=varlen) t_sp, gx, gy, gz, dx, dy, dz
+          write (lun_output, pos=varlen+1) t_sp, gx, gy, gz, dx, dy, dz
           deallocate (gx, gy, gz)
         else
           call collect_grid (x, y, z)
@@ -374,7 +415,6 @@ module Io
 !
       use Mpicomm, only: localize_xy, mpibcast_real, mpi_precision
       use General, only: backskip_to_time
-      use Syscalls, only: sizeof_real
 !
       character (len=*) :: file
       integer, intent(in) :: nv
@@ -382,10 +422,11 @@ module Io
       integer, optional, intent(in) :: mode
 !
       real, dimension (:), allocatable :: gx, gy, gz
-      integer :: handle, alloc_err
+      integer :: handle, alloc_err, rsize
       integer(kind=8) :: varlen
-      real :: t_sp   ! t in single precision for backwards compatibility
+      real :: t_sp, r_check=1.0   ! t in single precision for backwards compatibility
 !
+      rsize = storage_size(r_check)/8
       lread_add = .true.
       if (present (mode)) lread_add = (mode == 1)
 !
@@ -434,15 +475,22 @@ module Io
 !
           open (lun_input, FILE=trim (directory_snap)//'/'//file, FORM='unformatted', &
                  access='stream', status='old')
-          varlen = int(mxgrid, kind=8)*mygrid*mzgrid*nv*sizeof_real()
-          read (unit=lun_input, pos=varlen) t_sp, gx, gy, gz, dx, dy, dz
+          varlen = int(mxgrid, kind=8)*mygrid*mzgrid*nv*rsize
+          read (unit=lun_input, pos=varlen+1) t_sp, gx, gy, gz, dx, dy, dz
           call distribute_grid (x, y, z, gx, gy, gz)
           deallocate (gx, gy, gz)
         else
           call distribute_grid (x, y, z)
         endif
         call mpibcast_real (t_sp)
-        t = t_sp
+        !
+        !  Set time or overwrite it by a given value.
+        !
+        if (lreset_tstart) then
+          t = tstart
+        else
+          t = t_sp
+        endif
       endif
 !
     endsubroutine input_snap

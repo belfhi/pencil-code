@@ -304,7 +304,6 @@ module Io
 !  13-jan-2015/MR: avoid use of fseek; if necessary comment the calls to fseek in fseek_pos
 !
       use Mpicomm, only: localize_xy, mpibcast_real
-      use Syscalls, only: sizeof_real
       use General, only: backskip_to_time
 !
       character (len=*) :: file
@@ -317,7 +316,7 @@ module Io
       real, dimension (:), allocatable :: gx, gy, gz
       integer, parameter :: tag_ga=675
       integer :: pz, pa, z_start, io_len, alloc_err
-      integer(kind=8) :: rec_len
+      integer(kind=8) :: rec_len:wq
       real :: t_sp   ! t in single precision for backwards compatibility
 !
       lread_add = .true.

@@ -194,8 +194,8 @@ module Slices
               call wslice(path//trim(slices%name)//trim(sindex)//'.xz', &
                           slices%xz, y(iy_loc),nx,nz,nxgrid,nzgrid)
             if (associated(slices%xz2)) &
-              call wslice(path//trim(slices%name)//'.xz2',slices%xz2, &
-                          y(iy2_loc),nx,nz,nxgrid,nzgrid)
+              call wslice(path//trim(slices%name)//trim(sindex)//'.xz2',&
+                          slices%xz2,y(iy2_loc),nx,nz,nxgrid,nzgrid)
             if (associated(slices%xy)) &
               call wslice(path//trim(slices%name)//trim(sindex)//'.xy', &
                           slices%xy, z(iz_loc),nx,ny,nxgrid,nygrid)
@@ -326,6 +326,7 @@ module Slices
 !
         call MPI_FILE_CLOSE (fh, mpi_err)
       endif
+      call MPI_BARRIER(MPI_COMM_WORLD, mpi_err)
 !
 !  On root, write time and position to slice file
 !

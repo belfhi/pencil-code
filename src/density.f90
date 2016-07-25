@@ -175,6 +175,7 @@ module Density
   integer :: idiag_drhom=0      ! DIAG_DOC:
   integer :: idiag_rhomin=0     ! DIAG_DOC: $\min(\rho)$
   integer :: idiag_rhomax=0     ! DIAG_DOC: $\max(\rho)$
+  integer :: idiag_rhorms=0     ! DIAG_DOC: $\langle (\rho(x)\bar{\rho})^2 \rangle^{1/2}$
   integer :: idiag_ugrhom=0     ! DIAG_DOC: $\left<\uv\cdot\nabla\varrho\right>$
   integer :: idiag_uglnrhom=0   ! DIAG_DOC: $\left<\uv\cdot\nabla\ln\varrho\right>$
   integer :: idiag_lnrhomphi=0  ! PHIAVG_DOC: $\left<\ln\varrho\right>_\varphi$
@@ -1844,7 +1845,7 @@ module Density
       if (idiag_rhom/=0 .or. idiag_rho2m/=0 .or. idiag_rhomy/=0 .or. &
            idiag_rhomx/=0 .or. idiag_rho2mx/=0 .or. idiag_rhomz/=0 .or. idiag_rho2mz/=0 .or. &
            idiag_rhomin/=0 .or.  idiag_rhomax/=0 .or. idiag_rhomxy/=0 .or. idiag_rhomxz/=0 .or. &
-           idiag_totmass/=0 .or. idiag_mass/=0 .or. idiag_drho2m/=0 .or. &
+           idiag_totmass/=0 .or. idiag_mass/=0 .or. idiag_drho2m/=0 .or. idiag_rhorms/=0 .or. &
            idiag_drhom/=0 .or. idiag_rhomxmask/=0 .or. idiag_sigma/=0 .or. idiag_rhomzmask/=0) &
            lpenc_diagnos(i_rho)=.true.
       if (idiag_lnrho2m/=0) lpenc_diagnos(i_lnrho)=.true.
@@ -2466,6 +2467,8 @@ module Density
         if (idiag_rhomin/=0) &
             call max_mn_name(-p%rho,idiag_rhomin,lneg=.true.)
         if (idiag_rhomax/=0)   call max_mn_name(p%rho,idiag_rhomax)
+        if (idiag_rhorms/=0)    call sum_mn_name((p%rho-idiag_rhom)**2, &
+            idiag_rhorms, lsqrt=.true.)
         if (idiag_rho2m/=0)    call sum_mn_name(p%rho**2,idiag_rho2m)
         if (idiag_lnrho2m/=0)  call sum_mn_name(p%lnrho**2,idiag_lnrho2m)
         if (idiag_drho2m/=0)   call sum_mn_name((p%rho-rho0)**2,idiag_drho2m)
@@ -2990,8 +2993,8 @@ module Density
         idiag_rhom=0; idiag_rho2m=0; idiag_lnrho2m=0
         idiag_drho2m=0; idiag_drhom=0
         idiag_ugrhom=0; idiag_uglnrhom=0
-        idiag_rhomin=0; idiag_rhomax=0; idiag_dtd=0
-        idiag_lnrhomphi=0; idiag_rhomphi=0
+        idiag_rhomin=0; idiag_rhomax=0; idiag_rhorms=0
+        idiag_dtd=0; idiag_lnrhomphi=0; idiag_rhomphi=0
         idiag_rhomz=0; idiag_rho2mz=0; idiag_rhomy=0; idiag_rhomx=0; idiag_rho2mx=0
         idiag_uglnrhomz=0; idiag_uygzlnrhomz=0; idiag_uzgylnrhomz=0
         idiag_rhomxy=0; idiag_rhomr=0; idiag_totmass=0; idiag_mass=0; idiag_vol=0
@@ -3012,6 +3015,7 @@ module Density
         call parse_name(iname,cname(iname),cform(iname),'drhom',idiag_drhom)
         call parse_name(iname,cname(iname),cform(iname),'rhomin',idiag_rhomin)
         call parse_name(iname,cname(iname),cform(iname),'rhomax',idiag_rhomax)
+        call parse_name(iname,cname(iname),cform(iname),'rhorms',idiag_rhorms)
         call parse_name(iname,cname(iname),cform(iname),'lnrho2m',idiag_lnrho2m)
         call parse_name(iname,cname(iname),cform(iname),'ugrhom',idiag_ugrhom)
         call parse_name(iname,cname(iname),cform(iname),'uglnrhom', &

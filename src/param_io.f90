@@ -130,7 +130,7 @@ module Param_IO
       xfreeze_square, yfreeze_square, rfreeze_int, rfreeze_ext, wfreeze, &
       wfreeze_int, wfreeze_ext, wborder, wborder_int, wborder_ext, tborder, &
       luse_oldgrid, luse_xyz1, fshift_int, fshift_ext, &
-      lreset_tstart, tstart, lseparate_persist, ldistribute_persist, &
+      lreset_tstart, tstart, redshift0, lseparate_persist, ldistribute_persist, &
       fbcx1, fbcx2, fbcx1_2, fbcx2_2, &
       fbcy1, fbcy2, fbcy1_1, fbcy1_2, fbcy2_1, fbcy2_2, &
       fbcz1, fbcz2, fbcz1_1, fbcz1_2, fbcz2_1, fbcz2_2, &

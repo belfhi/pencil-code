@@ -305,7 +305,6 @@ module Io
 !   9-mar-2015/MR: backskipping to time record corrected
 !
       use Mpicomm, only: localize_xy, mpibcast_real, stop_it_if_any
-      use Syscalls, only: sizeof_real
       use General, only: backskip_to_time
 !
       character (len=*) :: file
