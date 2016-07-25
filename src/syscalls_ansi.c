@@ -157,15 +157,3 @@ void FTNIZE(system_c) (char *command)
 
 /* ---------------------------------------------------------------------- */
 
-void FTNIZE(sizeof_real_c)
-     (REAL *value, FINT *result)
-/* Determine the number of bytes used for value.
-   Returns:
-   * the number of bytes used for value
-*/
-{
-  *result = sizeof (*value);
-}
-
-/* ---------------------------------------------------------------------- */
-

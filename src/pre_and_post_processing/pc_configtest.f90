@@ -17,7 +17,6 @@ program pc_configtest
   use Register
   use Snapshot
   use Sub
-  use Syscalls, only: sizeof_real
 !
   implicit none
 !
