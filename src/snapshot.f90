@@ -56,7 +56,13 @@ module Snapshot
       real, dimension(ndown(1)+2*nghost,ndown(2)+2*nghost,ndown(3)+2*nghost,msnap) :: buffer
       integer, dimension(nghost) :: inds
       real, dimension(nghost) :: dxs_ghost, dys_ghost, dzs_ghost
-
+!
+!  Check for reset tstart, so lfirst_call is set to true again.
+!
+      if (lreset_tstart .and. t == 0.0) then
+        lfirst_call=.true.
+      endif
+!
       call safe_character_assign(file,trim(datadir)//'/tsnap_down.dat')
 !
 !  At first call, need to initialize tsnap.
@@ -69,7 +75,7 @@ module Snapshot
 !  update ghost zones for var.dat (cheap, since done infrequently).
 !
       call update_snaptime(file,tsnap,nsnap,dsnap_down,t,lsnap,ch)
-
+!
       if (lsnap) then
 !
         if (msnap==mfarray) &

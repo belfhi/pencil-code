@@ -30,8 +30,8 @@ module Viscosity
   integer, parameter :: nvisc_max=4
   character (len=labellen), dimension(nvisc_max) :: ivisc=''
   character (len=labellen) :: lambda_profile='uniform'
-  real :: nu=0.0, nu_tdep=0.0, nu_tdep_exponent=0.0, nu_tdep_t0=0.0
-  real :: zeta=0.0, nu_mol=0.0, nu_hyper2=0.0, nu_hyper3=0.0, nu_zdep=0.0
+  real :: nu=0.0, nu2=0.0, nu_tdep=0.0, nu_tdep_exponent=0.0, nu_tdep_t0=0.0
+  real :: zeta=0.0, nu_mol=0.0, nu_hyper2=0.0, nu_hyper3=0.0
   real :: nu_hyper3_mesh=5.0, nu_shock=0.0,nu_spitzer=0.0
   real :: nu_jump=1.0, xnu=1.0, xnu2=1.0, znu=1.0, widthnu=0.1, widthnu2=0.1
   real :: C_smag=0.0, gamma_smag=0.0, nu_jump2=1.0, drag_coeff=0.0, alpha_const=0.0
@@ -57,6 +57,7 @@ module Viscosity
   real, dimension(3) :: nu_aniso_hyper3=0.0
   real, dimension(mx) :: LV0_rprof,LV1_rprof,LH1_rprof,der_LV0_rprof,der_LV1_rprof
   real, pointer :: Pr ! get Prandtl number from hydro
+  logical :: nu_zdep=.false.
   logical :: lvisc_first=.false.
   logical :: lvisc_simplified=.false.
   logical :: lvisc_nu_non_newtonian=.false.
@@ -89,7 +90,7 @@ module Viscosity
   logical :: lvisc_hyper3_nu_const_aniso=.false.
   logical :: lvisc_hyper3_rho_nu_const_bulk=.false.
   logical :: lvisc_hyper3_nu_const=.false.
-  logical :: lvisc_hyper3_nu_zdep=.false.
+  logical :: lvisc_hyper3_nu_tdep=.false.
   logical :: lvisc_smag_simplified=.false.
   logical :: lvisc_smag_cross_simplified=.false.
   logical :: lvisc_snr_damp=.false.
@@ -111,7 +112,7 @@ module Viscosity
   character (LEN=labellen) :: islope_limiter=''
 !
   namelist /viscosity_run_pars/ &
-      limplicit_viscosity, nu, nu_tdep_exponent, nu_tdep_t0, zeta, &
+      limplicit_viscosity, nu, nu2, nu_zdep, nu_tdep_exponent, nu_tdep_t0, zeta, &
       nu_hyper2, nu_hyper3, ivisc, nu_mol, C_smag, gamma_smag, nu_shock, &
       nu_aniso_hyper3, lvisc_heat_as_aux,nu_jump,znu,xnu,xnu2,widthnu,widthnu2, &
       pnlaw,llambda_effect,Lambda_V0,Lambda_V1,Lambda_H1, nu_hyper3_mesh, &
@@ -397,10 +398,10 @@ module Viscosity
           if (lroot) print*,'viscous force: nu*(del6u+S.glnrho)'
           lpenc_requested(i_uij5)=.true.
           lvisc_hyper3_nu_const=.true.
-        case ('zdephyper3-nu-zdep')
-          if (lroot) print*,'viscous force: nu_zdep*(del6u+S.glnrho)'
+        case ('hyper3-nu-tdep')
+          if (lroot) print*,'viscous force: nu*(del6u+S.glnrho)(t)'
           lpenc_requested(i_uij5)=.true.
-          lvisc_hyper3_nu_zdep=.true.
+          lvisc_hyper3_nu_tdep=.true.
         case ('smagorinsky-simplified','smagorinsky_simplified')
           if (lroot) print*,'viscous force: Smagorinsky_simplified'
           if (lroot) lvisc_LES=.true.
@@ -888,8 +889,8 @@ module Viscosity
           lpenc_requested(i_del2u)=.true.
       if (.not. limplicit_viscosity .and. lvisc_simplified) lpenc_requested(i_del2u)=.true.
       if (lvisc_hyper3_simplified .or. lvisc_hyper3_rho_nu_const .or. &
-          lvisc_hyper3_nu_const .or. lvisc_hyper3_rho_nu_const_symm) &
-          lpenc_requested(i_del6u)=.true.
+          lvisc_hyper3_nu_const .or. lvisc_hyper3_rho_nu_const_symm .or. &
+          lvisc_hyper3_nu_tdep) lpenc_requested(i_del6u)=.true.
       if (lvisc_hyper3_rho_nu_const_symm) then
         lpenc_requested(i_grad5divu)=.true.
         if ((lentropy.or.ltemperature).and.lviscosity_heat) then
@@ -922,7 +923,8 @@ module Viscosity
           lpenc_requested(i_sglnTT)=.true.
 !
       if (lvisc_nu_const .and. lmagfield_nu) lpenc_requested(i_b2)=.true.
-      if (lvisc_hyper3_nu_const) lpenc_requested(i_uij5glnrho)=.true.
+      if (lvisc_hyper3_nu_const .or. lvisc_hyper3_nu_tdep) &
+          lpenc_requested(i_uij5glnrho)=.true.
       if (ldensity.and.lvisc_nu_shock) then
         lpenc_requested(i_graddivu)=.true.
         lpenc_requested(i_shock)=.true.
@@ -1283,11 +1285,16 @@ module Viscosity
         if (lfirst .and. ldt) p%diffus_total=p%diffus_total+nu
       endif
 !
-!  viscous force: nu(t)*(del2u+graddivu/3+2S.glnrho)
-!  -- the correct expression for nu=const
+!  Viscous forcing highly time dependent
 !
       if (lvisc_nu_tdep) then
-        nu_tdep=nu*(t-nu_tdep_t0)**nu_tdep_exponent         ! out of nm loop
+        !nu_tdep=nu*exp(nu_tdep_exponent*t)
+        if (nu_zdep == .true. .and. nu2/=0.0) then
+          zredshift = (1.0D0+redshift0)*exp(-2.0/3.0*t)-1.0D0
+          nu_tdep=nu2+(nu-nu2)/(1.0+1000.0*exp(-0.01*zredshift))
+        else
+          nu_tdep=nu*(t-nu_tdep_t0)**nu_tdep_exponent         ! out of nm loop
+        endif
         p%fvisc=p%fvisc+2*nu_tdep*p%sglnrho+nu_tdep*(p%del2u+1./3.*p%graddivu)
         if (lpencil(i_visc_heat)) p%visc_heat=p%visc_heat+2*nu_tdep*p%sij2
         if (lfirst .and. ldt) p%diffus_total=p%diffus_total+nu_tdep
@@ -1726,11 +1733,8 @@ module Viscosity
 !  your Makefile.local.
 !
       if (lvisc_hyper3_nu_const_strict) then
-        zredshift = (1.0D0+redshift0)*exp(-2.0/3.0*t)-1.0D0
-        call calc_xe(zredshift,ion_frac)
         do i=1,3
-          p%fvisc(:,i)=p%fvisc(:,i)+(1.16-ion_frac)*nu_hyper3*f(l1:l2,m,n,ihypvis-1+i)
-          !p%fvisc(:,i)=p%fvisc(:,i)+nu_hyper3*f(l1:l2,m,n,ihypvis-1+i)
+          p%fvisc(:,i)=p%fvisc(:,i)+nu_hyper3*f(l1:l2,m,n,ihypvis-1+i)
         enddo
         if (lpencil(i_visc_heat)) then
           if (headtt) then
@@ -1826,17 +1830,18 @@ module Viscosity
 !
 !  viscous force: nu_hyper3*(del6u+S.glnrho), with z-dependent nu_hyper3
 !
-      if (lvisc_hyper3_nu_zdep) then
+      if (lvisc_hyper3_nu_tdep) then
         zredshift = (1.0D0+redshift0)*exp(-2.0/3.0*t)-1.0D0
-        nu_zdep=nu_hyper3*exp(-zredshift/3000.0)
-        p%fvisc=p%fvisc+nu_zdep*(p%del6u+p%uij5glnrho)
+        !nu_zdep=nu_hyper3*exp(-zredshift/3000.0)
+        nu_tdep=nu2+(nu-nu2)/(1.0+1000.0*exp(-0.01*zredshift))
+        p%fvisc=p%fvisc+nu_tdep*(p%del6u+p%uij5glnrho)
         if (lpencil(i_visc_heat)) then  ! Heating term not implemented
           if (headtt) then
             call warning('calc_pencils_viscosity', 'viscous heating term '// &
               'is not implemented for lvisc_hyper3_nu_const')
           endif
         endif
-        if (lfirst .and. ldt) p%diffus_total3=p%diffus_total3+nu_zdep
+        if (lfirst .and. ldt) p%diffus_total3=p%diffus_total3+nu_tdep
       endif
 !
 !  viscous force: Handle damping at the core of SNRs

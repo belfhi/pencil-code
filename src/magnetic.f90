@@ -154,7 +154,7 @@ module Magnetic
   logical :: lresi_etaSS=.false.
   logical :: lresi_hyper2=.false.
   logical :: lresi_hyper3=.false.
-  logical :: lresi_hyper3_zdep=.false.
+  logical :: lresi_hyper3_tdep=.false.
   logical :: lresi_hyper3_polar=.false.
   logical :: lresi_hyper3_mesh=.false.
   logical :: lresi_hyper3_strict=.false.
@@ -218,7 +218,7 @@ module Magnetic
 !
 ! Run parameters
 !
-  real :: eta=0.0, eta1=0.0, eta_hyper2=0.0, eta_hyper3=0.0
+  real :: eta=0.0, eta1=0.0, eta2=0.0, eta_hyper2=0.0, eta_hyper3=0.0
   real :: eta_hyper3_mesh=5.0, eta_spitzer=0., eta_anom=0.0
   real :: eta_variable=0.0, zredshift=0.0
   real :: eta_int=0.0, eta_ext=0.0, wresistivity=0.01, eta_xy_max=1.0
@@ -277,7 +277,7 @@ module Magnetic
   character (len=labellen) :: ambipolar_diffusion='constant'
 !
   namelist /magnetic_run_pars/ &
-      eta, eta1, eta_hyper2, eta_hyper3, eta_anom, B_ext, B0_ext, t_bext, t0_bext, J_ext, &
+      eta, eta1, eta2, eta_hyper2, eta_hyper3, eta_anom, B_ext, B0_ext, t_bext, t0_bext, J_ext, &
       J_ext_quench, omega_Bz_ext, nu_ni, hall_term, battery_term, &
       eta_hyper3_mesh, &
       tau_aa_exterior, kx_aa, ky_aa, kz_aa, lcalc_aamean,lohmic_heat, &
@@ -578,6 +578,7 @@ module Magnetic
   integer :: idiag_bmxy_rms=0   ! DIAG_DOC: $\sqrt{[\left<b_x\right>_z(x,y)]^2 +
                                 ! DIAG_DOC: [\left<b_y\right>_z(x,y)]^2 +
                                 ! DIAG_DOC: [\left<b_z\right>_z(x,y)]^2} $
+  integer :: idiag_eta_tdep=0   ! DIAG_DOC: time dependent eta3
   integer :: idiag_etasmagm=0   ! DIAG_DOC: Mean of Smagorinsky resistivity
   integer :: idiag_etasmagmin=0 ! DIAG_DOC: Min of Smagorinsky resistivity
   integer :: idiag_etasmagmax=0 ! DIAG_DOC: Max of Smagorinsky resistivity
@@ -1052,7 +1053,7 @@ module Magnetic
       lresi_sqrtrhoeta_const=.false.
       lresi_hyper2=.false.
       lresi_hyper3=.false.
-      lresi_hyper3_zdep=.false.
+      lresi_hyper3_tdep=.false.
       lresi_hyper3_polar=.false.
       lresi_hyper3_mesh=.false.
       lresi_hyper3_strict=.false.
@@ -1088,9 +1089,9 @@ module Magnetic
         case ('hyper3')
           if (lroot) print*, 'resistivity: hyper3'
           lresi_hyper3=.true.
-        case ('hyper3-zdep')
+        case ('hyper3-tdep')
           if (lroot) print*, 'resistivity: hyper3, z dependent'
-          lresi_hyper3_zdep=.true.
+          lresi_hyper3_tdep=.true.
         case ('hyper3_cyl','hyper3-cyl','hyper3_sph','hyper3-sph')
           if (lroot) print*, 'resistivity: hyper3 curvilinear'
           lresi_hyper3_polar=.true.
@@ -1992,7 +1993,7 @@ module Magnetic
            lpenc_requested(i_diva)=.true.
       if (lresi_smagorinsky_cross) lpenc_requested(i_jo)=.true.
       if (lresi_hyper2) lpenc_requested(i_del4a)=.true.
-      if (lresi_hyper3 .or. lresi_hyper3_zdep) lpenc_requested(i_del6a)=.true.
+      if (lresi_hyper3 .or. lresi_hyper3_tdep) lpenc_requested(i_del6a)=.true.
 !
 !  Note that for the cylindrical case, according to lpencil_check,
 !  graddiva is not needed. We still need it for the lspherical_coords
@@ -3223,9 +3224,10 @@ module Magnetic
         if (lfirst.and.ldt) diffus_eta3=diffus_eta3+eta_hyper3
       endif
 !
-      if (lresi_hyper3_zdep) then
+      if (lresi_hyper3_tdep) then
         zredshift = (1.0D0+redshift0)*exp(-2.0/3.0*t)-1.0D0
-        eta_variable=exp(-zredshift/3000.)*eta_hyper3
+        eta_variable=eta2+(eta-eta2)/(1.0+1000.0*exp(-0.01*zredshift))
+        !eta_variable=exp(-zredshift/3000.)*eta_hyper3
         fres=fres+eta_variable*p%del6a
         if (lfirst.and.ldt) diffus_eta3=diffus_eta3+eta_variable
       endif
@@ -4086,6 +4088,7 @@ module Magnetic
 !
 !  Resistivity.
 !
+        if (idiag_eta_tdep/=0)   call sum_mn_name(spread(eta_variable,1,nx),idiag_eta_tdep)
         if (idiag_etasmagm/=0)   call sum_mn_name(eta_smag,idiag_etasmagm)
         if (idiag_etasmagmin/=0) call max_mn_name(-eta_smag,idiag_etasmagmin,lneg=.true.)
         if (idiag_etasmagmax/=0) call max_mn_name(eta_smag,idiag_etasmagmax)
@@ -7632,6 +7635,7 @@ module Magnetic
         call parse_name(iname,cname(iname),cform(iname),'Rmrms',idiag_Rmrms)
         call parse_name(iname,cname(iname),cform(iname),'jfm',idiag_jfm)
         call parse_name(iname,cname(iname),cform(iname),'bmxy_rms',idiag_bmxy_rms)
+        call parse_name(iname,cname(iname),cform(iname),'eta_tdep',idiag_eta_tdep)              
         call parse_name(iname,cname(iname),cform(iname),'etasmagm',idiag_etasmagm)
         call parse_name(iname,cname(iname),cform(iname),'etasmagmin',idiag_etasmagmin)
         call parse_name(iname,cname(iname),cform(iname),'etasmagmax',idiag_etasmagmax)
