@@ -112,6 +112,10 @@ PARTICLES_DIAGNOS_STATE = noparticles_diagnos_state
 PARTICLES_TEMPERATURE = noparticles_temperature
 PARTICLES_MASS        = noparticles_mass
 #
+# Ionization fraction subroutine
+#
+IONIZATION_CHLUBA = Interpolate_Recombination_history
+#
 # Single vs. double precision.
 #
 REAL_PRECISION = default
@@ -125,6 +129,7 @@ F90FLAGS     =
 F77          = f90
 F77FLAGS     =
 CFLAGS       =
+CPPFLAGS     =
 FCCLEANER    =
 LIBMPISUFFIX =
 MAKEOPTS     =
@@ -146,8 +151,9 @@ CFLAGS_GENERAL =
 #
 # Default double flags (can be overwritten in machine-specific section).
 #
-FFLAGS_DOUBLE = -r8
-CFLAGS_DOUBLE = -DDOUBLE_PRECISION
+FFLAGS_DOUBLE   = -r8
+CFLAGS_DOUBLE   = -DDOUBLE_PRECISION
+CPPFLAGS_DOUBLE = -DDOUBLE_PRECISION
 #
 # Overwrite settings that are local to each run directory.
 #
@@ -509,6 +515,9 @@ INITIAL_CONDITION_SRC=$(INITIAL_CONDITION).f90
 #
 INTERSTELLAR_OBJ=$(INTERSTELLAR).o
 INTERSTELLAR_SRC=$(INTERSTELLAR).f90
+# 
+IONIZATION_CHLUBA_OBJ=$(IONIZATION_CHLUBA).o
+IONIZATION_CHLUBA_SRC=$(IONIZATION_CHLUBA).cpp
 #
 DEBUG_IO_OBJ=$(DEBUG_IO).o
 DEBUG_IO_SRC=$(DEBUG_IO).f90
@@ -2100,7 +2109,7 @@ LDFLAGS=$(FFLAGS) $(FFLAGS_GENERAL) $(LDONLYFLAGS)
 #  Generic rules.
 #
 .SUFFIXES:			# get rid of that annoying Modula rule
-.SUFFIXES: .f .f90 .c .o .inc .h .dot .ps .svg
+.SUFFIXES: .f .f90 .c .cpp .o .inc .h .dot .ps .svg
 #
 .f.o:
 	$(F77) $(FFLAGS) $(FFLAGS_GENERAL) $(FFLAGS_FOURIER) $(F77FLAGS) -o $*.o -c $*.f
@@ -2108,6 +2117,8 @@ LDFLAGS=$(FFLAGS) $(FFLAGS_GENERAL) $(LDONLYFLAGS)
 	$(FC) $(FFLAGS) $(FFLAGS_GENERAL) $(FFLAGS_FOURIER) $(F90FLAGS) $(FSTD) -o $*.o -c $*.f90
 .c.o:
 	$(CC) $(CFLAGS) $(CFLAGS_GENERAL) $(CFLAGS_FOURIER) $(CSTD) -o $*.o -c $*.c
+.cpp.o:
+	$(CPP) $(CPPFLAGS) $(CPPSTD) -o $*.o -c $*.cpp
 #
 #  Default target (start.x and run.x are compiled in "code").
 #
@@ -2123,7 +2134,7 @@ preprocess=$(BORDER_PROFILES_SRC) $(CHEMISTRY_SRC) $(CHIRAL_SRC) $(COSMICRAY_SRC
 #  Static libraries (.a files) must be placed in the end.
 #  Please use alphabetical order.
 #
-physics=$(CHEMISTRY_OBJ) $(CHIRAL_OBJ) $(COSMICRAY_OBJ) $(COSMICRAYFLUX_OBJ) $(DENSITY_OBJ) $(DENSITY_METHODS_OBJ) $(DETONATE_OBJ) $(DUSTDENSITY_OBJ) $(DUSTVELOCITY_OBJ) $(ENERGY_OBJ) $(EOS_OBJ) $(FORCING_OBJ) $(GRAVITY_OBJ) $(HYDRO_OBJ) $(HYPERRESI_STRICT_OBJ) $(HYPERVISC_STRICT_OBJ) $(IMPLICIT_PHYSICS_OBJ) $(INTERSTELLAR_OBJ) $(LORENZ_GAUGE_OBJ) $(NEUTRALDENSITY_OBJ) $(NEUTRALVELOCITY_OBJ) $(OPACITY_OBJ) $(POISSON_OBJ) $(POLYMER_OBJ) $(PSCALAR_OBJ) $(RADIATION_OBJ) $(SELFGRAVITY_OBJ) $(SHEAR_OBJ) $(SHOCK_OBJ) $(SPECIAL_OBJ) $(TESTFIELD_GENERAL_OBJ) $(TESTFIELD_OBJ) $(TESTFLOW_OBJ) $(TESTSCALAR_OBJ) $(VISCOSITY_OBJ) magnetic.a $(PARTICLES_MAIN).a $(HEATFLUX_OBJ)
+physics=$(CHEMISTRY_OBJ) $(CHIRAL_OBJ) $(COSMICRAY_OBJ) $(COSMICRAYFLUX_OBJ) $(DENSITY_OBJ) $(DENSITY_METHODS_OBJ) $(DETONATE_OBJ) $(DUSTDENSITY_OBJ) $(DUSTVELOCITY_OBJ) $(ENERGY_OBJ) $(EOS_OBJ) $(FORCING_OBJ) $(GRAVITY_OBJ) $(HYDRO_OBJ) $(HYPERRESI_STRICT_OBJ) $(HYPERVISC_STRICT_OBJ) $(IMPLICIT_PHYSICS_OBJ) $(INTERSTELLAR_OBJ) $(LORENZ_GAUGE_OBJ) $(NEUTRALDENSITY_OBJ) $(NEUTRALVELOCITY_OBJ) $(OPACITY_OBJ) $(POISSON_OBJ) $(POLYMER_OBJ) $(PSCALAR_OBJ) $(RADIATION_OBJ) $(SELFGRAVITY_OBJ) $(SHEAR_OBJ) $(SHOCK_OBJ) $(SPECIAL_OBJ) $(TESTFIELD_GENERAL_OBJ) $(TESTFIELD_OBJ) $(TESTFLOW_OBJ) $(TESTSCALAR_OBJ) $(VISCOSITY_OBJ) $(IONIZATION_CHLUBA_OBJ) magnetic.a $(PARTICLES_MAIN).a $(HEATFLUX_OBJ)
 #
 #  Short hand for technical modules.
 #  Please use alphabetical order.
@@ -2142,11 +2153,11 @@ run=$(physics) $(technical) $(TIMESTEP).o equ.o pencil_check.o
 #
 start.o: $(start) Makefile.local
 start.x: start.o
-	$(LD) $(LDFLAGS) $(start) start.o $(LD_MPI) $(LD_FOURIER) $(LD_GSL) -o start.x
+	$(LD) $(LDFLAGS) $(start) start.o $(LD_MPI) $(LD_FOURIER) $(LD_GSL) $(CPPLDFLAGS) -o start.x
 #
 run.o: $(run) Makefile.local
 run.x: run.o
-	$(LD) $(LDFLAGS) $(run) run.o $(LD_MPI) $(LD_FOURIER) $(LIBSIG) $(LD_GSL) -o run.x
+	$(LD) $(LDFLAGS) $(run) run.o $(LD_MPI) $(LD_FOURIER) $(LIBSIG) $(LD_GSL) $(CPPLDFLAGS) -o run.x
 #
 #  Rules for combine_videofiles.x, read_videofiles.x, read_vectorfiles.x.
 #
