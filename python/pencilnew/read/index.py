@@ -47,7 +47,7 @@ class Index(dict):
             clean = line.strip()
             name=clean.split('=')[0].strip().replace('[','').replace(']','')
             if (clean.split('=')[1].strip().startswith('intarr(370)')):
-	      continue
+                continue
             val=int(clean.split('=')[1].strip())
             #            print name,val
             # need to compare val to totalvars as global indices

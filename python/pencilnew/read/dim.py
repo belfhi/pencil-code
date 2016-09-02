@@ -31,7 +31,7 @@ class PcDim:
         self.ipx = ipx
         self.ipy = ipy
         self.ipz = ipz
-	self.mglobal = mglobal	
+        self.mglobal = mglobal	
         
         #derived quantities
         self.nx = mx - (2 * nghostx)
@@ -71,10 +71,10 @@ def dim(datadir='data',proc=-1):
         filename = datadir+'/proc'+str(proc)+'/dim.dat' # local proc. dimensions
 
     try:
-	filename = os.path.expanduser(filename)
+        filename = os.path.expanduser(filename)
         file = open(filename,"r")
     except IOError:
-        print "File",filename,"could not be opened."
+        print(("File",filename,"could not be opened."))
         return -1
     else:
         lines = file.readlines()
@@ -83,8 +83,8 @@ def dim(datadir='data',proc=-1):
     if len(lines[0].split()) == 6:
     	mx,my,mz,mvar,maux,mglobal = tuple(map(int,lines[0].split()))
     else:
-	mx,my,mz,mvar,maux = tuple(map(int,lines[0].split()))
-	mglobal = 0
+        mx,my,mz,mvar,maux = tuple(map(int,lines[0].split()))
+        mglobal = 0
 
     precision = lines[1].strip("\n")
     nghostx,nghosty,nghostz = tuple(map(int,lines[2].split()))
